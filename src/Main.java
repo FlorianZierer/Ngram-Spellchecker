@@ -140,7 +140,7 @@ public class Main
 		scanner.close();
 	}
 	// Source: https://wortschatz.uni-leipzig.de/en/download/English
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		String path = "/Users/florianzierer/Desktop/SS24/LingoLibry/Transcripts/";
 		String fileName = "eng-com_web-public_2018_1M-sentences";
 		double percent = 0.10;
