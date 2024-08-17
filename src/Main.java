@@ -108,38 +108,63 @@ public class Main {
 			String word2 = words[1];
 			String word3 = words[2];
 
-			Set<Couple<Double, Script>> suggestions = new HashSet<>();
+			Set<Couple<Double, Script>> suggestionsTriGram = new HashSet<>();
+			Set<Couple<Double, Script>> suggestionsBiGram= new HashSet<>();
+			Set<Couple<Double, Script>> suggestionsDirect = new HashSet<>();
 
+			double highestSimilarityTriGram = 0.0;
+			double highestSimilarityBiGram = 0.0;
+			double highestSimilarityDirect = 0.0;// Looking for the smallest distance
 			// Ngram Search
 			for (Texture<Script> ngram : ngrams) {
 				double distance1 = levenshtein(ngram.at(0), new Script(word1));
+				double distance2 = levenshtein(ngram.at(1),new Script(word2));
 				double distance3 = levenshtein(ngram.at(2), new Script(word3));
+				Couple<Double, Script> suggestion = new Couple<>(distance2, new Script(ngram.at(1)));
 
-				if (distance1 == 1.0 && distance3 == 1.0) {
-					double distance2 = levenshtein(new Script(word2), ngram.at(1));
-					Couple<Double, Script> suggestion = new Couple<>(distance2, new Script(ngram.at(1)));
-					suggestions.add(suggestion);
+				if ((distance1 == 1.0 && distance3 == 1.0) && (distance2 > highestSimilarityTriGram)) {
+					suggestionsTriGram.clear();
+					suggestionsTriGram.add(suggestion);
+					highestSimilarityTriGram = distance2;
+				} else if ((distance1 == 1.0 && distance3 == 1.0) && (distance2 == highestSimilarityTriGram)) {
+					suggestionsTriGram.add(suggestion);
 				}
-			}
-			printInfo(suggestions, "Ngram");
-
-			// Direct Search if no Ngram matches
-			if (suggestions.isEmpty()) {
-				double highestSimilarity = 0.0; // Looking for the smallest distance
-				for (Texture<Script> ngram : ngrams) {
-					double distance = levenshtein(new Script(word2), ngram.at(1));
-					Couple<Double, Script> suggestion = new Couple<>(distance, new Script(ngram.at(1)));
-
-					if (distance > highestSimilarity) {
-						suggestions.clear(); // Keep only the closest match
-						suggestions.add(suggestion);
-						highestSimilarity = distance;
-					} else if (distance == highestSimilarity) {
-						suggestions.add(suggestion); // Allow ties
-					}
+				if ((distance1 == 1.0 || distance3 == 1.0) && (distance2 > highestSimilarityBiGram)) {
+					suggestionsBiGram.clear();
+					suggestionsBiGram.add(suggestion);
+					highestSimilarityBiGram = distance2;
+				} else if ((distance1 == 1.0 || distance3 == 1.0) && (distance2 == highestSimilarityBiGram)){
+					suggestionsBiGram.add(suggestion);
 				}
+				if (distance2 > highestSimilarityDirect) {
+					suggestionsDirect.clear(); // Keep only the closest match
+					suggestionsDirect.add(suggestion);
+					highestSimilarityDirect = distance2;
+				} else if (distance2 == highestSimilarityDirect) {
+					suggestionsDirect.add(suggestion); // Allow ties
+				}
+
 			}
-			printInfo(suggestions, "Direct");
+			printInfo(suggestionsTriGram, "TriGram");
+			printInfo(suggestionsBiGram, "BiGram");
+			printInfo(suggestionsDirect, "Direct");
+
+			Double acceptanceThreshold = 0.70;
+
+			Set<Couple<Double, Script>> suggestions = new HashSet<>();
+
+			if(highestSimilarityTriGram>=acceptanceThreshold) {
+				suggestions.addAll(suggestionsTriGram);
+			} else if (highestSimilarityBiGram>=acceptanceThreshold) {
+				suggestions.addAll(suggestionsBiGram);
+			} else if (highestSimilarityDirect>=acceptanceThreshold) {
+				suggestions.addAll(suggestionsDirect);
+			}
+
+			for (Couple<Double, Script> suggestion : suggestions) {
+				System.out.println("Vorschlag: \"" + suggestion.getValue() + "\" mit der Levenshtein Distance: " + suggestion.getKey());
+			}
+			System.out.println("Test");
 		}
 
 		scanner.close();
