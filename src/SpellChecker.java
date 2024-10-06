@@ -130,6 +130,15 @@ public class SpellChecker {
 
         Path jsonDirectoryPath = directoryPath.resolve("Json");
 
+        if (!Files.exists(jsonDirectoryPath)) {
+            try {
+                Files.createDirectories(jsonDirectoryPath);
+                System.out.println("Json directory created: " + jsonDirectoryPath);
+            } catch (IOException e) {
+                System.err.println("Failed to create Json directory: " + e.getMessage());
+            }
+        }
+
         List<Path> txtFiles = Files.list(directoryPath)
                 .filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".txt"))
@@ -272,4 +281,9 @@ public class SpellChecker {
     }
 
     // Gibt Informationen zu den Vorschlägen aus
-    private void printInfo(Map<String, Sug
+    private void printInfo(Map<String, Suggestion> suggestions, String category) {
+        System.out.println(category + " Vorschläge:");
+        suggestions.forEach((script, suggestion) ->
+                System.out.println(script + " (Punktzahl: " + suggestion.score + ", Wiederholungen: " + suggestion.repetitionCount + ")"));
+    }
+}
