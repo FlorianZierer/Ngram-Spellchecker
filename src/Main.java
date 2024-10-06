@@ -40,9 +40,9 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 		Path path = Path.of("./Transcripts/");
 
-		double percent = 0.1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
+		double percent = 1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
 		int nGramLength = 3;
-		int mircothreads = 50;
+		int mircothreads = 10;
 		int epochs = 10;
 
 		Double acceptanceThreshold = 0.60;

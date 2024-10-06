@@ -48,7 +48,7 @@ public class SpellChecker {
             for (int j = 0; j < threads; j++) {
                 int threadStart = start + j * batchProThread;
                 int threadEnd = threadStart + batchProThread;
-                NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength, percent));
+                NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength,i));
             }
         }
 
@@ -272,9 +272,4 @@ public class SpellChecker {
     }
 
     // Gibt Informationen zu den Vorschlägen aus
-    private void printInfo(Map<String, Suggestion> suggestions, String category) {
-        System.out.println(category + " Vorschläge:");
-        suggestions.forEach((script, suggestion) ->
-                System.out.println(script + " (Punktzahl: " + suggestion.score + ", Wiederholungen: " + suggestion.repetitionCount + ")"));
-    }
-}
+    private void printInfo(Map<String, Sug
