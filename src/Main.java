@@ -39,13 +39,15 @@ public class Main {
 	// Quelle: https://wortschatz.uni-leipzig.de/en/download/English
 	public static void main(String[] args) throws IOException {
 		Path path = Path.of("./Transcripts/");
+
 		double percent = 0.1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
 		int nGramLength = 3;
 		int mircothreads = 50;
+		int epochs = 10;
 
 		Double acceptanceThreshold = 0.60;
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold);
-		spellChecker.setCorpora(path, percent, nGramLength, mircothreads);
+		spellChecker.setCorpora(path, percent, nGramLength, mircothreads, epochs);
 
 		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
 		evaluator.evaluate(false);

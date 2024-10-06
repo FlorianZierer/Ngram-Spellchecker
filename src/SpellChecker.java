@@ -4,6 +4,7 @@ import lingologs.Script;
 import lingologs.Texture;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -32,18 +33,23 @@ public class SpellChecker {
 
     // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
     public static Texture<Texture<Script>> multiThreadingCreate(Path directoryPath, String filename, int nGramLength,
-                                                                double percent, int threads) throws ExecutionException, InterruptedException, IOException {
+                                                                double percent, int threads, int epochs) throws ExecutionException, InterruptedException, IOException {
         Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
         Path filePath = directoryPath.resolve(filename);
-        long fileSize = Files.size(filePath);
-        long processSize = (long) (fileSize * percent);
-        int chunkSize = (int) (processSize / threads);
+        long totalLines = Files.lines(filePath, StandardCharsets.UTF_8).count();
+        int lines = (int) (totalLines * percent);
+        int batchSize = lines / epochs;
+        int batchProThread = batchSize / threads;
 
         List<CreateNgramCallable> NGC = new ArrayList<>();
-        for (int i = 0; i < threads; i++) {
-            int start = i * chunkSize;
-            int end = (i == threads - 1) ? (int) processSize : (i + 1) * chunkSize;
-            NGC.add(new CreateNgramCallable(filePath, start, end, nGramLength, percent));
+        for (int i = 0; i < epochs; i++) {
+            int start = i * batchSize;
+            int end = (i + 1) * batchSize;
+            for (int j = 0; j < threads; j++) {
+                int threadStart = start + j * batchProThread;
+                int threadEnd = threadStart + batchProThread;
+                NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength, percent));
+            }
         }
 
         ExecutorService ExSe = Executors.newFixedThreadPool(threads);
@@ -102,12 +108,12 @@ public class SpellChecker {
     }
 
     // Setzt das Korpus aus Dateien in einem Verzeichnis
-    public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads) {
+    public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads, int epochs) {
         try {
             System.out.println(Constants.ANSI_PURPLE + "Setze Korpus aus Verzeichnis: " + directoryPath + Constants.ANSI_RESET);
             long totalStartTime = System.nanoTime();
 
-            ngrams = getNgrams(directoryPath, nGramLength, threads, percent);
+            ngrams = getNgrams(directoryPath, nGramLength, threads, percent, epochs);
 
             long totalEndTime = System.nanoTime();
             System.out.println(Constants.ANSI_PURPLE + "Finale N-Gramm-Liste Länge: " + ngrams.extent() + Constants.ANSI_RESET);
@@ -119,7 +125,7 @@ public class SpellChecker {
     }
 
     // Extrahiert N-Gramme aus Dateien im angegebenen Verzeichnis
-    public Texture<Texture<Script>> getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent) throws ExecutionException, InterruptedException, IOException {
+    public Texture<Texture<Script>> getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent, int epochs) throws ExecutionException, InterruptedException, IOException {
         Texture.Builder<Texture<Script>> builder = new Texture.Builder<>();
 
         Path jsonDirectoryPath = directoryPath.resolve("Json");
@@ -161,7 +167,7 @@ public class SpellChecker {
             if (!processedNames.contains(nameWithoutSuffix)) {
                 try {
                     long startTime = System.nanoTime();// Path directoryPath, String filename, int nGramLength,double percent, int threads
-                    Texture<Texture<Script>> wordsGrammyfied = multiThreadingCreate(directoryPath, fileName, nGramLength, percent, threads);
+                    Texture<Texture<Script>> wordsGrammyfied = multiThreadingCreate(directoryPath, fileName, nGramLength, percent, threads, epochs);
                     builder.attach(wordsGrammyfied);
                     long endTime = System.nanoTime();
                     System.out.println(Constants.ANSI_YELLOW + "Neue N-Gramme gespeichert in: " + jsonDirectoryPath + " in " + ((endTime - startTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
