@@ -1,55 +1,55 @@
-import lingolava.Legacy;
-import lingolava.Nexus.*;
-import lingolava.Tuple;
-import lingologs.*;
-
-import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static lingolava.Tuple.*;
 
 public class Main {
 
-	public static void consoleListener() {
+	public static void consoleListener(SpellChecker spellChecker) {
 		Scanner scanner = new Scanner(System.in);
-		System.out.println("Geben Sie drei Wörter ein (oder 'exit' zum Beenden):");
-
+		// Muster für zu löschende Elemente (auskommentiert)
+		System.out.println("Geben Sie Wörter ein um sie zu prüfen (oder 'exit' zum Beenden):");
+		String[] words;
+		String[] correctedWords;
 		while (true) {
 			String input = scanner.nextLine();
 			if (input.equalsIgnoreCase("exit")) {
 				System.out.println("Programm beendet.");
 				break;
 			}
+			words = input.toLowerCase().split(" ");
 
-			String[] words = input.toLowerCase().split(" ");
-			if (words.length != 3) {
-				System.out.println("Bitte geben Sie genau drei Wörter ein.");
-				continue;
+			System.out.println(Arrays.toString(words));
+
+			correctedWords = new String[words.length];
+			for(int i=0 ;i < words.length; i++){
+				if(i==0){
+					correctedWords[i] = spellChecker.getCorrection(null, words[i], words[i+1],false);
+				} else if (i == words.length-1) {
+					correctedWords[i] = spellChecker.getCorrection(words[i-1], words[i], null,false);
+				} else {
+					correctedWords[i] = spellChecker.getCorrection(words[i-1], words[i], words[i+1],false);
+				}
 			}
-
-			String word1 = words[0];
-			String word2 = words[1];
-			String word3 = words[2];
-
+			System.out.println(Arrays.toString(correctedWords));
 		}
 
 		scanner.close();
 	}
 
-    // Source: https://wortschatz.uni-leipzig.de/en/download/English
-    public static void main(String[] args) {
-        String path = "./Transcripts/";
-        double percent = 0.10;
-        int nGramLength = 3;
-		Double acceptanceThreshold = 0.70;
+	// Quelle: https://wortschatz.uni-leipzig.de/en/download/English
+	public static void main(String[] args) throws IOException {
+		Path path = Path.of("./Transcripts/");
+		double percent = 0.1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
+		int nGramLength = 3;
+		int mircothreads = 50;
+
+		Double acceptanceThreshold = 0.60;
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold);
+		spellChecker.setCorpora(path, percent, nGramLength, mircothreads);
 
-		spellChecker.setCorpora(path, percent, nGramLength);
+		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
+		evaluator.evaluate(false);
 
-        consoleListener();
-    }
+		consoleListener(spellChecker);
+	}
 }
-

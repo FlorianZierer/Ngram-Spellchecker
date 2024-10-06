@@ -1,0 +1,177 @@
+[
+
+    {"correct": "the quick brown fox", "incorrect": "the quick brwon fox"},
+
+    {"correct": "jumps over lazy dogs", "incorrect": "jumps oevr lazy dogs"},
+
+    {"correct": "she sells sea shells", "incorrect": "she sells sae shells"},
+
+    {"correct": "by the sea shore", "incorrect": "by the sae shore"},
+
+    {"correct": "an apple a day", "incorrect": "an apple a dyay"},
+
+    {"correct": "keeps the doctor away", "incorrect": "keeps the dcotor away"},
+
+    {"correct": "better late than never", "incorrect": "better late thn never"},
+
+    {"correct": "actions speak louder", "incorrect": "actions speak loder"},
+
+    {"correct": "than words", "incorrect": "than wodrs"},
+
+    {"correct": "a picture is worth", "incorrect": "a picture is wrorth"},
+
+    {"correct": "a thousand words", "incorrect": "a thousand wodrs"},
+
+    {"correct": "barking dogs seldom bite", "incorrect": "barking dogs seldm bite"},
+
+    {"correct": "all that glitters is not gold", "incorrect": "all that gliters is not gold"},
+
+    {"correct": "you can't judge a book", "incorrect": "you can't jduge a book"},
+
+    {"correct": "by its cover", "incorrect": "by its covre"},
+
+    {"correct": "birds of a feather", "incorrect": "birds of a feahter"},
+
+    {"correct": "flock together", "incorrect": "flock togehter"},
+
+    {"correct": "a penny saved is a penny earned", "incorrect": "a penny saved is a penny eanred"},
+
+    {"correct": "a rolling stone gathers no moss", "incorrect": "a rolling stone gahters no moss"},
+
+    {"correct": "curiosity killed the cat", "incorrect": "curiosity kileld the cat"},
+
+    {"correct": "don't count your chickens", "incorrect": "don't count your chcekens"},
+
+    {"correct": "before they hatch", "incorrect": "before they hacth"},
+
+    {"correct": "don't put all your eggs", "incorrect": "don't put all your egs"},
+
+    {"correct": "in one basket", "incorrect": "in one baksit"},
+
+    {"correct": "easy come easy go", "incorrect": "easy come esay go"},
+
+    {"correct": "better safe than sorry", "incorrect": "better safe than sory"},
+
+    {"correct": "a stitch in time", "incorrect": "a sttich in time"},
+
+    {"correct": "saves nine", "incorrect": "saves nien"},
+
+    {"correct": "give a man a fish", "incorrect": "give a man a fsh"},
+
+    {"correct": "he eats for a day", "incorrect": "he eats for a dyay"},
+
+    {"correct": "teach him to fish", "incorrect": "teach him to fsh"},
+
+    {"correct": "he eats for a lifetime", "incorrect": "he eats for a lfetime"},
+
+    {"correct": "great minds think alike", "incorrect": "great minds thnik alike"},
+
+    {"correct": "haste makes waste", "incorrect": "haste mkaes waste"},
+
+    {"correct": "honesty is the best policy", "incorrect": "honesty is the best polciy"},
+
+    {"correct": "if it ain't broke don't fix it", "incorrect": "if it ain't broke don't fx it"},
+
+    {"correct": "ignorance is bliss", "incorrect": "ignorance is bilss"},
+
+    {"correct": "it takes two to tango", "incorrect": "it takes two to tngo"},
+
+    {"correct": "look before you leap", "incorrect": "look before you leep"},
+
+    {"correct": "make hay while the sun shines", "incorrect": "make hay whlie the sun shines"},
+
+    {"correct": "many hands make light work", "incorrect": "many hands make lgiht work"},
+
+    {"correct": "misery loves company", "incorrect": "misery loves comapny"},
+
+    {"correct": "no pain no gain", "incorrect": "no pain no gian"},
+
+    {"correct": "once bitten twice shy", "incorrect": "once bitten twcie shy"},
+
+    {"correct": "out of sight out of mind", "incorrect": "out of sight out of mnid"},
+
+    {"correct": "practice makes perfect", "incorrect": "practice makes prfect"},
+
+    {"correct": "strike while the iron is hot", "incorrect": "strike while the irno is hot"},
+
+    {"correct": "the early bird catches the worm", "incorrect": "the early bird cacthes the worm"},
+
+    {"correct": "the grass is always greener", "incorrect": "the grass is always grener"},
+
+    {"correct": "on the other side", "incorrect": "on the other sdie"},
+
+    {"correct": "the pen is mightier than the sword", "incorrect": "the pen is mighter than the sword"},
+
+    {"correct": "there's no place like home", "incorrect": "there's no place lkie home"},
+
+    {"correct": "time flies when you're having fun", "incorrect": "time flies when you're havnig fun"},
+
+    {"correct": "to each his own", "incorrect": "to each his owm"},
+
+    {"correct": "two heads are better than one", "incorrect": "two heads are better thna one"},
+
+    {"correct": "when in rome", "incorrect": "when in rmoe"},
+
+    {"correct": "do as the romans do", "incorrect": "do as the romasn do"},
+
+    {"correct": "where there's smoke there's fire", "incorrect": "where there's smoek there's fire"},
+
+    {"correct": "you can't have your cake", "incorrect": "you can't have your ckae"},
+
+    {"correct": "and eat it too", "incorrect": "and eat it otoo"},
+
+    {"correct": "you can't teach an old dog", "incorrect": "you can't teach an od dog"},
+
+    {"correct": "new tricks", "incorrect": "new trciks"},
+
+    {"correct": "you reap what you sow", "incorrect": "you reap what you sw"},
+
+    {"correct": "a watched pot never boils", "incorrect": "a watched pot never boisl"},
+
+    {"correct": "absence makes the heart", "incorrect": "absence makes the hert"},
+
+    {"correct": "grow fonder", "incorrect": "grow fnoder"},
+
+    {"correct": "actions speak louder than words", "incorrect": "actions speak louder thna words"},
+
+    {"correct": "all's well that ends well", "incorrect": "all's well that ends wel"},
+
+    {"correct": "beauty is in the eye", "incorrect": "beauty is in the eey"},
+
+    {"correct": "of the beholder", "incorrect": "of the bholder"},
+
+    {"correct": "beggars can't be choosers", "incorrect": "beggars can't be chsoers"},
+
+    {"correct": "birds of a feather flock together", "incorrect": "birds of a feather flcok together"},
+
+    {"correct": "don't bite the hand", "incorrect": "don't bite the hnand"},
+
+    {"correct": "that feeds you", "incorrect": "that feeds yuo"},
+
+    {"correct": "don't judge a book by its cover", "incorrect": "don't judge a book by its covre"},
+
+    {"correct": "every cloud has a silver lining", "incorrect": "every cloud has a sliver lining"},
+
+    {"correct": "a fool and his money", "incorrect": "a fool and his mnoney"},
+
+    {"correct": "are soon parted", "incorrect": "are soon patred"},
+
+    {"correct": "a journey of a thousand miles", "incorrect": "a journey of a thousand miels"},
+
+    {"correct": "begins with a single step", "incorrect": "begins with a sigle step"},
+
+    {"correct": "a leopard cannot change its spots", "incorrect": "a leopard cannot change its sopts"},
+
+    {"correct": "fools rush in", "incorrect": "fools rsh in"},
+
+    {"correct": "where angels fear to tread", "incorrect": "where angels fer to tread"},
+
+    {"correct": "good things come", "incorrect": "good thnigs come"},
+
+    {"correct": "to those who wait", "incorrect": "to those who wat"},
+
+    {"correct": "haste makes waste", "incorrect": "haste makes wste"},
+
+    {"correct": "honesty is the best policy", "incorrect": "honesty is the best polciy"}
+
+]

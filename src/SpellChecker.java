@@ -1,185 +1,274 @@
 import lingolava.Legacy;
 import lingolava.Nexus;
-import lingolava.Tuple;
 import lingologs.Script;
 import lingologs.Texture;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
-import java.util.regex.Pattern;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class SpellChecker {
 
+    // Schwellenwert für die Akzeptanz von Wortähnlichkeiten
     private Double acceptanceThreshold;
 
-    Texture<Texture<Script>> ngrams = new Texture<>();
+    // N-Gramm-Struktur für die Speicherung von Wortsequenzen
+    private Texture<Texture<Script>> ngrams = new Texture<>();
 
+    // Pfad zum Evaluierungsdatensatz
+    private static final String EVALUATION_DATASET_PATH = "./Transcripts/Evaluation/evaluation_dataset.json";
+
+    // Konstruktor mit Akzeptanzschwellenwert
     public SpellChecker(Double acceptanceThreshold) {
         this.acceptanceThreshold = acceptanceThreshold;
     }
 
-
-    public static Script processText(Path path, double percent) {
-        try {
-            List<String> L = Files.readAllLines(path);
-            L.removeIf(String::isEmpty);
-            List<String> Lshort = shortenList(L, percent);
-            String U = String.join(" ", Lshort);
-            return new Script(U);
-        } catch (Exception E) {
-            throw new RuntimeException(E);
-        }
-    }
-
-    private static List<String> shortenList(List<String> L, double percent) {
-        int endIndex = (int) (L.size() * (percent / 100.0));
-        return new ArrayList<>(L.subList(0, Math.min(endIndex, L.size())));
-    }
-/*
-	public static List<List<Script>> convertListIntoSmaller(List<Script> words){
-		return IntStream.rangeClosed(0, words.size() - 3)
-				.mapToObj(i -> words.subList(i, i + 3))
-				.collect(Collectors.toList()); // TODO: get all
-	}
-	*/
-
-    static public Double levenshtein(Script word1, Script word2) {
+    // Berechnet die Levenshtein-Distanz zwischen zwei Wörtern
+    static public Double distance(Script word1, Script word2) {
         return word1.similares(word2, Legacy.Similitude.Levenshtein);
     }
 
+    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
+    public static Texture<Texture<Script>> multiThreadingCreate(Path directoryPath, String filename, int nGramLength,
+                                                                double percent, int threads) throws ExecutionException, InterruptedException, IOException {
+        Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
+        Path filePath = directoryPath.resolve(filename);
+        long fileSize = Files.size(filePath);
+        long processSize = (long) (fileSize * percent);
+        int chunkSize = (int) (processSize / threads);
 
-    private static Texture<Script> readAndFilterTxt(String path, String filename, double percent) {
-        Script S = processText(Path.of(path + filename), percent);
-        String superScripts = "[⁰¹²³⁴⁵⁶⁷⁸⁹]";
-        Pattern toDelete = Pattern.compile("(\\d+\\t)|•|\"" + superScripts); // TODO: to remove », http://cdn. , " , -- ,  ¹, «  / Zitate raus und variation
-        Script clearedText = S.replace(toDelete, Script.NIX).toLower();
-        return new Texture<>(clearedText.split("\\s+"));
+        List<CreateNgramCallable> NGC = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            int start = i * chunkSize;
+            int end = (i == threads - 1) ? (int) processSize : (i + 1) * chunkSize;
+            NGC.add(new CreateNgramCallable(filePath, start, end, nGramLength, percent));
+        }
+
+        ExecutorService ExSe = Executors.newFixedThreadPool(threads);
+
+        List<Future<Texture<Texture<Script>>>> future = NGC.stream()
+                .map(ExSe::submit).toList();
+
+        future.stream()
+                .map(f -> {
+                    try {
+                        return f.get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .forEach(ngramsBuilder::attach);
+
+        ExSe.shutdown();
+
+        return ngramsBuilder.toTexture();
     }
 
-    public void setCorpora(String directoryPath, double percent, Integer nGrammLength) {
+    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
+    public static Texture<Texture<Script>> multiThreadingLoad(Path jsonFilePath,double percent,int threads) throws ExecutionException, InterruptedException, IOException {
         Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
+
+        long fileSize = Files.size(jsonFilePath);
+        long processSize = (long) (fileSize * percent);
+        int chunkSize = (int) (processSize / threads);
+
+        List<LoadNgramCallable> NGC = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            int start = i * chunkSize;
+            int end = (i == threads - 1) ? (int) processSize : (i + 1) * chunkSize;
+            NGC.add(new LoadNgramCallable(jsonFilePath));
+        }
+
+        ExecutorService ExSe = Executors.newFixedThreadPool(threads);
+
+        List<Future<Texture<Texture<Script>>>> future = NGC.stream()
+                .map(ExSe::submit).toList();
+
+        future.stream()
+                .map(f -> {
+                    try {
+                        return f.get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .forEach(ngramsBuilder::attach);
+
+        ExSe.shutdown();
+
+        return ngramsBuilder.toTexture();
+    }
+
+    // Setzt das Korpus aus Dateien in einem Verzeichnis
+    public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads) {
         try {
-            // Hole alle .txt-Dateien im angegebenen Ordner
-            Files.list(Paths.get(directoryPath))
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".txt"))
-                    .forEach(path -> {
-                        Texture<Texture<Script>> fileNgrams = getNgrams(directoryPath,path.getFileName().toString(),percent,nGrammLength);
-                        ngramsBuilder.attach(fileNgrams);
-                        System.out.println("Mit " + path.getFileName().toString() + " / ngram Liste Länge: " + fileNgrams.extent());
-                    });
-            Texture<Texture<Script>> ngrams = ngramsBuilder.toTexture();
-            System.out.println("Finale ngram Liste Länge: " + ngrams.extent());
-        } catch (IOException e) {
+            System.out.println(Constants.ANSI_PURPLE + "Setze Korpus aus Verzeichnis: " + directoryPath + Constants.ANSI_RESET);
+            long totalStartTime = System.nanoTime();
+
+            ngrams = getNgrams(directoryPath, nGramLength, threads, percent);
+
+            long totalEndTime = System.nanoTime();
+            System.out.println(Constants.ANSI_PURPLE + "Finale N-Gramm-Liste Länge: " + ngrams.extent() + Constants.ANSI_RESET);
+            System.out.println(Constants.ANSI_PURPLE + "Gesamtzeit für setCorpora: " + ((totalEndTime - totalStartTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            System.err.println(Constants.ANSI_RED + "Fehler beim Setzen des Korpus aus Verzeichnis: " + directoryPath + Constants.ANSI_RESET);
             e.printStackTrace();
         }
     }
 
-    public Texture<Texture<Script>> getNgrams(String path, String filename, double percent, Integer nGrammLength) {
-        String nameWithoutSuffix = filename.substring(0, filename.lastIndexOf('.'));
-        Path jsonFilePath = Path.of(path + "Json/" + nameWithoutSuffix + ".json");
-        Texture<Texture<Script>> wordsGrammyfied;
-        try {
-            if (Files.exists(jsonFilePath)) {
-                String nGramJson = Files.readString(jsonFilePath);
-                Nexus.DataNote readNgram = Nexus.DataNote.byJSON(nGramJson);
-                wordsGrammyfied = new Texture<>(
-                        readNgram.asList(d ->
-                                new Texture<>(d.asList(inner ->
-                                        new Script(inner.asString())
-                                ))
-                        )
-                );
+    // Extrahiert N-Gramme aus Dateien im angegebenen Verzeichnis
+    public Texture<Texture<Script>> getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent) throws ExecutionException, InterruptedException, IOException {
+        Texture.Builder<Texture<Script>> builder = new Texture.Builder<>();
 
+        Path jsonDirectoryPath = directoryPath.resolve("Json");
 
-            } else {
-                Nexus.JSONProcessor JP = new Nexus.JSONProcessor();
-                Texture<Script> words = readAndFilterTxt(path, filename, percent);
-                wordsGrammyfied = new Texture<>(words.grammy(nGrammLength));
-                List<List<Script>> convertedList = wordsGrammyfied
-                        .stream()
-                        .map(texture -> new ArrayList<>(texture.stream().toList()))
-                        .collect(Collectors.toList());
+        List<Path> txtFiles = Files.list(directoryPath)
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".txt"))
+                .filter(path -> !path.getFileName().toString().startsWith("._"))
+                .toList();
 
-                Nexus.DataNote json = Nexus.DataNote.by(convertedList);
-                Files.createFile(jsonFilePath);
-                String jsonString = JP.present(json);
-                Files.writeString(jsonFilePath, jsonString);
+        List<Path> jsonFiles = Files.list(jsonDirectoryPath)
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".json"))
+                .filter(path -> !path.getFileName().toString().startsWith("._"))
+                .toList();
+
+        Set<String> processedNames = new HashSet<>();
+
+        // Verarbeite zuerst JSON-Dateien
+        for (Path jsonFile : jsonFiles) {
+            String fileName = jsonFile.getFileName().toString();
+            String nameWithoutSuffix = fileName.substring(0, fileName.lastIndexOf('.'));
+
+            try {
+                Texture<Texture<Script>> wordsGrammyfied = multiThreadingLoad(jsonFile,percent,threads);
+                builder.attach(wordsGrammyfied);
+                processedNames.add(nameWithoutSuffix);
+            } catch (Exception E) {
+                System.err.println(Constants.ANSI_RED + "Fehler bei der Verarbeitung von N-Grammen für JSON-Datei: " + fileName + Constants.ANSI_RESET);
+                throw new RuntimeException(E);
             }
-
-            return wordsGrammyfied;
-        } catch (Exception E) {
-            throw new RuntimeException(E);
         }
+
+        // Verarbeite TXT-Dateien, wenn keine entsprechende JSON existiert
+        for (Path txtFile : txtFiles) {
+            String fileName = txtFile.getFileName().toString();
+            String nameWithoutSuffix = fileName.substring(0, fileName.lastIndexOf('.'));
+
+            if (!processedNames.contains(nameWithoutSuffix)) {
+                try {
+                    long startTime = System.nanoTime();// Path directoryPath, String filename, int nGramLength,double percent, int threads
+                    Texture<Texture<Script>> wordsGrammyfied = multiThreadingCreate(directoryPath, fileName, nGramLength, percent, threads);
+                    builder.attach(wordsGrammyfied);
+                    long endTime = System.nanoTime();
+                    System.out.println(Constants.ANSI_YELLOW + "Neue N-Gramme gespeichert in: " + jsonDirectoryPath + " in " + ((endTime - startTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
+                } catch (Exception E) {
+                    System.err.println(Constants.ANSI_RED + "Fehler bei der Verarbeitung von N-Grammen für TXT-Datei: " + fileName + Constants.ANSI_RESET);
+                    throw new RuntimeException(E);
+                }
+            }
+        }
+
+        return builder.toTexture();
     }
 
-    public void method() {
-        Set<Tuple.Couple<Double, Script>> suggestionsTriGram = new HashSet<>();
-        Set<Tuple.Couple<Double, Script>> suggestionsBiGram= new HashSet<>();
-        Set<Tuple.Couple<Double, Script>> suggestionsDirect = new HashSet<>();
+
+
+    // Korrigiert ein Wort basierend auf dem Kontext (vorheriges und nachfolgendes Wort)
+    public String getCorrection(String word1, String word2, String word3, boolean directOnly) {
+        Map<String, Suggestion> suggestionsTriGram = new HashMap<>();
+        Map<String, Suggestion> suggestionsBiGram = new HashMap<>();
+        Map<String, Suggestion> suggestionsDirect = new HashMap<>();
 
         double highestSimilarityTriGram = 0.0;
         double highestSimilarityBiGram = 0.0;
-        double highestSimilarityDirect = 0.0;// Looking for the smallest distance
-        // Ngram Search
-        for (Texture<Script> ngram : ngrams) {
-            double distance1 = levenshtein(ngram.at(0), new Script("word1"));
-            double distance2 = levenshtein(ngram.at(1),new Script("word2"));
-            double distance3 = levenshtein(ngram.at(2), new Script("word3"));
-            Tuple.Couple<Double, Script> suggestion = new Tuple.Couple<>(distance2, new Script(ngram.at(1)));
+        double highestSimilarityDirect = 0.0;
 
-            if ((distance1 == 1.0 && distance3 == 1.0) && (distance2 > highestSimilarityTriGram)) {
-                suggestionsTriGram.clear();
-                suggestionsTriGram.add(suggestion);
-                highestSimilarityTriGram = distance2;
-            } else if ((distance1 == 1.0 && distance3 == 1.0) && (distance2 == highestSimilarityTriGram)) {
-                suggestionsTriGram.add(suggestion);
+        for (Texture<Script> ngram : ngrams) {
+            double distance1 = word1 == null ? -1 : distance(ngram.at(0), new Script(word1));
+            double distance2 = distance(ngram.at(1), new Script(word2));
+            double distance3 = word3 == null ? -1 : distance(ngram.at(2), new Script(word3));
+            Script script = new Script(ngram.at(1));
+            String scriptString = script.toString();
+
+            if (!directOnly) {
+                if (word1 != null && word3 != null) {
+                    if ((distance1 >= acceptanceThreshold && distance3 >= acceptanceThreshold) && (distance2 > highestSimilarityTriGram)) {
+                        suggestionsTriGram.clear();
+                        suggestionsTriGram.put(scriptString, new Suggestion(distance2, script));
+                        highestSimilarityTriGram = distance2;
+                    } else if ((distance1 >= acceptanceThreshold && distance3 >= acceptanceThreshold) && (distance2 == highestSimilarityTriGram)) {
+                        updateSuggestion(suggestionsTriGram, scriptString, distance2, script);
+                    }
+                }
+
+                if ((distance1 >= acceptanceThreshold || distance3 >= acceptanceThreshold) && (distance2 > highestSimilarityBiGram)) {
+                    suggestionsBiGram.clear();
+                    suggestionsBiGram.put(scriptString, new Suggestion(distance2, script));
+                    highestSimilarityBiGram = distance2;
+                } else if ((distance1 >= acceptanceThreshold || distance3 >= acceptanceThreshold) && (distance2 == highestSimilarityBiGram)) {
+                    updateSuggestion(suggestionsBiGram, scriptString, distance2, script);
+                }
             }
-            if ((distance1 == 1.0 || distance3 == 1.0) && (distance2 > highestSimilarityBiGram)) {
-                suggestionsBiGram.clear();
-                suggestionsBiGram.add(suggestion);
-                highestSimilarityBiGram = distance2;
-            } else if ((distance1 == 1.0 || distance3 == 1.0) && (distance2 == highestSimilarityBiGram)){
-                suggestionsBiGram.add(suggestion);
-            }
+
             if (distance2 > highestSimilarityDirect) {
-                suggestionsDirect.clear(); // Keep only the closest match
-                suggestionsDirect.add(suggestion);
+                suggestionsDirect.clear();
+                suggestionsDirect.put(scriptString, new Suggestion(distance2, script));
                 highestSimilarityDirect = distance2;
             } else if (distance2 == highestSimilarityDirect) {
-                suggestionsDirect.add(suggestion); // Allow ties
+                updateSuggestion(suggestionsDirect, scriptString, distance2, script);
             }
-
         }
-        printInfo(suggestionsTriGram, "TriGram");
-        printInfo(suggestionsBiGram, "BiGram");
+
+        if (!directOnly) {
+            printInfo(suggestionsTriGram, "TriGram");
+            printInfo(suggestionsBiGram, "BiGram");
+        }
         printInfo(suggestionsDirect, "Direct");
 
+        Map<String, Suggestion> suggestions = new HashMap<>();
 
+        if (directOnly) {
+            if (highestSimilarityDirect >= acceptanceThreshold) {
+                suggestions.putAll(suggestionsDirect);
+            }
+        } else {
+            if (highestSimilarityTriGram >= acceptanceThreshold) {
+                suggestions.putAll(suggestionsTriGram);
+            } else if (highestSimilarityBiGram >= acceptanceThreshold) {
+                suggestions.putAll(suggestionsBiGram);
+            } else if (highestSimilarityDirect >= acceptanceThreshold) {
+                suggestions.putAll(suggestionsDirect);
+            }
+        }
 
-        Set<Tuple.Couple<Double, Script>> suggestions = new HashSet<>();
+        if (suggestions.isEmpty()) {
+            return word2;
+        }
 
-        if(highestSimilarityTriGram>=acceptanceThreshold) {
-            suggestions.addAll(suggestionsTriGram);
-        } else if (highestSimilarityBiGram>=acceptanceThreshold) {
-            suggestions.addAll(suggestionsBiGram);
-        } else if (highestSimilarityDirect>=acceptanceThreshold) {
-            suggestions.addAll(suggestionsDirect);
+        return suggestions.values().stream()
+                .max(Comparator.comparingDouble((Suggestion s) -> s.score)
+                        .thenComparingInt(s -> s.repetitionCount))
+                .map(s -> s.script.toString())
+                .orElse(word2);
+    }
+
+    // Aktualisiert die Vorschläge und deren Wiederholungszähler
+    private void updateSuggestion(Map<String, Suggestion> suggestions, String scriptString, double score, Script script) {
+        if (suggestions.containsKey(scriptString)) {
+            suggestions.get(scriptString).incrementRepetitionCount();
+        } else {
+            suggestions.put(scriptString, new Suggestion(score, script));
         }
     }
 
-    private static void printInfo(Set<Tuple.Couple<Double, Script>> suggestions, String type) {
-        if (!suggestions.isEmpty()) {
-            for (Tuple.Couple<Double, Script> suggestion : suggestions) {
-                System.out.println(type + " - Vorschlag: \"" + suggestion.getValue() + "\" mit der Levenshtein Distance: " + suggestion.getKey());
-            }
-        } else {
-            System.out.println(type + " - Keine Ergebnisse gefunden");
-        }
+    // Gibt Informationen zu den Vorschlägen aus
+    private void printInfo(Map<String, Suggestion> suggestions, String category) {
+        System.out.println(category + " Vorschläge:");
+        suggestions.forEach((script, suggestion) ->
+                System.out.println(script + " (Punktzahl: " + suggestion.score + ", Wiederholungen: " + suggestion.repetitionCount + ")"));
     }
 }
