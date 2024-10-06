@@ -22,20 +22,18 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private static final int BUFFER_SIZE = 10000;
     private final Path jsonDirectoryPath;
     private final String filename;
-    private final double percent;
 
 
     public CreateNgramCallable(Path filePath, int start, int end,
-                               int nGramLength, double percent) {
+                               int nGramLength, int threadID) {
         this.filePath = filePath;
         this.start = start;
         this.end = end;
         this.nGramLength = nGramLength;
         this.jsonDirectoryPath = filePath.getParent().resolve("Json")
-                .resolve(filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.')) + ".json");
+                .resolve(filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.')) + "_" + threadID + ".json");
 
         this.filename = filePath.getFileName().toString();
-        this.percent = percent;
     }
 
     @Override
@@ -69,7 +67,7 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     }
 
     private Texture<Texture<Script>> createNgrams() throws IOException {
-        System.out.println(Constants.ANSI_YELLOW + "Erstelle neue n-Gramme von Zeile " + start + " bis " + end + " (Verarbeite " + (percent * 100) + "% der Datei)" + Constants.ANSI_RESET);
+        System.out.println(Constants.ANSI_YELLOW + "Erstelle neue n-Gramme von Zeile " + start + " bis " + end + " der Datei)" + Constants.ANSI_RESET);
         Texture<Script> words = readAndFilterTxt();
         return new Texture<>(words.grammy(nGramLength));
     }
@@ -106,11 +104,6 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                         processBuffer(buffer, builder);
                         buffer.clear();
                     }
-                }
-
-                // Prüfe, ob der gewünschte Prozentsatz der Datei verarbeitet wurde
-                if (currentLine >= end * percent) {
-                    break;
                 }
             }
 

@@ -16,15 +16,13 @@ class NgramCallable implements Callable<Texture<Texture<Script>>> {
     private final int start;
     private final int end;
     private final int nGramLength;
-    private final double percent;
     private static final int BUFFER_SIZE = 10000;
 
-    public NgramCallable(Path filePath, int start, int end, int nGramLength, double percent) {
+    public NgramCallable(Path filePath, int start, int end, int nGramLength) {
         this.filePath = filePath;
         this.start = start;
         this.end = end;
         this.nGramLength = nGramLength;
-        this.percent = percent;
     }
 
     @Override
@@ -33,7 +31,7 @@ class NgramCallable implements Callable<Texture<Texture<Script>>> {
     }
 
     private Texture<Texture<Script>> createNgrams() throws IOException {
-        System.out.println(Constants.ANSI_YELLOW + "Erstelle neue n-Gramme von Zeile " + start + " bis " + end + " (Verarbeite " + (percent * 100) + "% der Datei)" + Constants.ANSI_RESET);
+        System.out.println(Constants.ANSI_YELLOW + "Erstelle neue n-Gramme von Zeile " + start + " bis " + end + " der Datei)" + Constants.ANSI_RESET);
         Texture<Script> words = readAndFilterTxt();
         return new Texture<>(words.grammy(nGramLength));
     }
@@ -70,11 +68,6 @@ class NgramCallable implements Callable<Texture<Texture<Script>>> {
                         processBuffer(buffer, builder);
                         buffer.clear();
                     }
-                }
-
-                // Prüfe, ob der gewünschte Prozentsatz der Datei verarbeitet wurde
-                if (currentLine >= end * percent) {
-                    break;
                 }
             }
 
