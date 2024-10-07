@@ -39,14 +39,15 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
 
     @Override
     public Texture<Texture<Script>> call() throws Exception {
-        return createAndSaveNewNgrams();
+        createAndSaveNewNgrams();
+        return new Texture<>();
+
     }
 
     // Erstellt und speichert neue N-Gramme aus einer Textdatei
-    private Texture<Texture<Script>> createAndSaveNewNgrams() throws IOException, ExecutionException, InterruptedException {
+    private void createAndSaveNewNgrams() throws IOException, ExecutionException, InterruptedException {
         Texture<Texture<Script>> fileNGrams = createNgrams();
         appendNewNgrams(fileNGrams);
-        return fileNGrams;
     }
 
     private void appendNewNgrams(Texture<Texture<Script>> newNGrams) throws IOException {

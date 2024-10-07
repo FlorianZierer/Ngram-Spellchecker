@@ -49,8 +49,8 @@ public class Main {
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold);
 		spellChecker.setCorpora(path, percent, nGramLength, mircothreads, epochs);
 
-		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
-		evaluator.evaluate(false);
+		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
+		//evaluator.evaluate(false);
 
 		consoleListener(spellChecker);
 	}
