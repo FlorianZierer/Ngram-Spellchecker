@@ -31,7 +31,6 @@ public class SpellChecker {
         return word1.similares(word2, Legacy.Similitude.Levenshtein);
     }
 
-    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
     public static Texture<Texture<Script>> multiThreadingCreate(Path directoryPath, String filename, int nGramLength,
                                                                 double percent, int threads, int epochs) throws ExecutionException, InterruptedException, IOException {
         Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
@@ -39,17 +38,30 @@ public class SpellChecker {
         long totalLines = Files.lines(filePath, StandardCharsets.UTF_8).count();
         int lines = (int) (totalLines * percent);
         int batchSize = lines / epochs;
+
+        for (int epoch = 0; epoch < epochs; epoch++) {
+            int start = epoch * batchSize;
+            int end = (epoch + 1) * batchSize;
+
+            Texture<Texture<Script>> epochResult = multiThreadingCreateEpoch(filePath, nGramLength, start, end, threads, epoch);
+            ngramsBuilder.attach(epochResult);
+        }
+
+        return ngramsBuilder.toTexture();
+    }
+
+    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion für eine Epoche
+    private static Texture<Texture<Script>> multiThreadingCreateEpoch(Path filePath, int nGramLength,
+                                                                      int start, int end, int threads, int epochNumber) throws ExecutionException, InterruptedException {
+        Texture.Builder<Texture<Script>> epochBuilder = new Texture.Builder<>();
+        int batchSize = end - start;
         int batchProThread = batchSize / threads;
 
         List<CreateNgramCallable> NGC = new ArrayList<>();
-        for (int i = 0; i < epochs; i++) {
-            int start = i * batchSize;
-            int end = (i + 1) * batchSize;
-            for (int j = 0; j < threads; j++) {
-                int threadStart = start + j * batchProThread;
-                int threadEnd = threadStart + batchProThread;
-                NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength,i));
-            }
+        for (int j = 0; j < threads; j++) {
+            int threadStart = start + j * batchProThread;
+            int threadEnd = threadStart + batchProThread;
+            NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength, epochNumber));
         }
 
         ExecutorService ExSe = Executors.newFixedThreadPool(threads);
@@ -65,11 +77,11 @@ public class SpellChecker {
                         throw new RuntimeException(e);
                     }
                 })
-                .forEach(ngramsBuilder::attach);
+                .forEach(epochBuilder::attach);
 
         ExSe.shutdown();
 
-        return ngramsBuilder.toTexture();
+        return epochBuilder.toTexture();
     }
 
     // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
