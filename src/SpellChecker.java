@@ -15,9 +15,6 @@ public class SpellChecker {
     // Schwellenwert für die Akzeptanz von Wortähnlichkeiten
     private Double acceptanceThreshold;
 
-    // N-Gramm-Struktur für die Speicherung von Wortsequenzen
-    private Texture<Texture<Script>> ngrams = new Texture<>();
-
     // Pfad zum Evaluierungsdatensatz
     private static final String EVALUATION_DATASET_PATH = "./Transcripts/Evaluation/evaluation_dataset.json";
 
@@ -121,30 +118,21 @@ public class SpellChecker {
     // Setzt das Korpus aus Dateien in einem Verzeichnis
     public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads, int epochs) {
         try {
-            System.out.println(Constants.ANSI_PURPLE + "Setze Korpus aus Verzeichnis: " + directoryPath + Constants.ANSI_RESET);
-            long totalStartTime = System.nanoTime();
+            getNgrams(directoryPath, nGramLength, threads, percent, epochs);
 
-            ngrams = getNgrams(directoryPath, nGramLength, threads, percent, epochs);
-
-            long totalEndTime = System.nanoTime();
-            System.out.println(Constants.ANSI_PURPLE + "Finale N-Gramm-Liste Länge: " + ngrams.extent() + Constants.ANSI_RESET);
-            System.out.println(Constants.ANSI_PURPLE + "Gesamtzeit für setCorpora: " + ((totalEndTime - totalStartTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
         } catch (IOException | ExecutionException | InterruptedException e) {
-            System.err.println(Constants.ANSI_RED + "Fehler beim Setzen des Korpus aus Verzeichnis: " + directoryPath + Constants.ANSI_RESET);
             e.printStackTrace();
         }
     }
 
     // Extrahiert N-Gramme aus Dateien im angegebenen Verzeichnis
-    public Texture<Texture<Script>> getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent, int epochs) throws ExecutionException, InterruptedException, IOException {
-        Texture.Builder<Texture<Script>> builder = new Texture.Builder<>();
+    public void getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent, int epochs) throws ExecutionException, InterruptedException, IOException {
 
         Path jsonDirectoryPath = directoryPath.resolve("Json");
 
         if (!Files.exists(jsonDirectoryPath)) {
             try {
                 Files.createDirectories(jsonDirectoryPath);
-                System.out.println("Json directory created: " + jsonDirectoryPath);
             } catch (IOException e) {
                 System.err.println("Failed to create Json directory: " + e.getMessage());
             }
@@ -156,49 +144,31 @@ public class SpellChecker {
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
 
-        List<Path> jsonFiles = Files.list(jsonDirectoryPath)
+        List<Path> jsonFolders = Files.list(jsonDirectoryPath)
                 .filter(Files::isRegularFile)
-                .filter(path -> path.toString().endsWith(".json"))
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
 
-        Set<String> processedNames = new HashSet<>();
+        List<String> jsonNames = jsonFolders
+                .stream()
+                .map(folder -> folder.getFileName().toString())
+                .toList();
 
-        // Verarbeite zuerst JSON-Dateien
-        for (Path jsonFile : jsonFiles) {
-            String fileName = jsonFile.getFileName().toString();
-            String nameWithoutSuffix = fileName.substring(0, fileName.lastIndexOf('.'));
-
-            try {
-                Texture<Texture<Script>> wordsGrammyfied = multiThreadingLoad(jsonFile,percent,threads);
-                builder.attach(wordsGrammyfied);
-                processedNames.add(nameWithoutSuffix);
-            } catch (Exception E) {
-                System.err.println(Constants.ANSI_RED + "Fehler bei der Verarbeitung von N-Grammen für JSON-Datei: " + fileName + Constants.ANSI_RESET);
-                throw new RuntimeException(E);
-            }
-        }
 
         // Verarbeite TXT-Dateien, wenn keine entsprechende JSON existiert
         for (Path txtFile : txtFiles) {
             String fileName = txtFile.getFileName().toString();
             String nameWithoutSuffix = fileName.substring(0, fileName.lastIndexOf('.'));
 
-            if (!processedNames.contains(nameWithoutSuffix)) {
+            if (!jsonNames.contains(nameWithoutSuffix)) {
                 try {
-                    long startTime = System.nanoTime();// Path directoryPath, String filename, int nGramLength,double percent, int threads
-                    Texture<Texture<Script>> wordsGrammyfied = multiThreadingCreate(directoryPath, fileName, nGramLength, percent, threads, epochs);
-                    builder.attach(wordsGrammyfied);
-                    long endTime = System.nanoTime();
-                    System.out.println(Constants.ANSI_YELLOW + "Neue N-Gramme gespeichert in: " + jsonDirectoryPath + " in " + ((endTime - startTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
+                    multiThreadingCreate(directoryPath, fileName, nGramLength, percent, threads, epochs);
                 } catch (Exception E) {
                     System.err.println(Constants.ANSI_RED + "Fehler bei der Verarbeitung von N-Grammen für TXT-Datei: " + fileName + Constants.ANSI_RESET);
                     throw new RuntimeException(E);
                 }
             }
         }
-
-        return builder.toTexture();
     }
 
 

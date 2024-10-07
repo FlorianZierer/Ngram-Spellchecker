@@ -31,10 +31,11 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         this.start = start;
         this.end = end;
         this.nGramLength = nGramLength;
-        this.jsonDirectoryPath = filePath.getParent().resolve("Json")
-                .resolve(filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.')) + "_" + threadID + ".json");
+        this.filename = filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.'));
+        this.jsonDirectoryPath = filePath.getParent().resolve("Json").resolve(filename)
+                .resolve(filename + "_" + threadID + ".json");
 
-        this.filename = filePath.getFileName().toString();
+
     }
 
     @Override
@@ -46,6 +47,13 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
 
     // Erstellt und speichert neue N-Gramme aus einer Textdatei
     private void createAndSaveNewNgrams() throws IOException, ExecutionException, InterruptedException {
+        if (!Files.exists(jsonDirectoryPath)) {
+            try {
+                Files.createDirectories(jsonDirectoryPath);
+            } catch (IOException e) {
+                System.err.println("Failed to create Json directory: " + e.getMessage());
+            }
+        }
         Texture<Texture<Script>> fileNGrams = createNgrams();
         appendNewNgrams(fileNGrams);
     }
