@@ -22,6 +22,7 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private static final int BUFFER_SIZE = 10000;
     private final Path jsonDirectoryPath;
     private final String filename;
+    private final int thread;
 
 
     public CreateNgramCallable(Path filePath, int start, int end,
@@ -34,10 +35,12 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                 .resolve(filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.')) + "_" + threadID + ".json");
 
         this.filename = filePath.getFileName().toString();
+        this.thread = threadID;
     }
 
     @Override
     public Texture<Texture<Script>> call() throws Exception {
+        System.out.println("thread nummer " + thread + "schreibt in " + jsonDirectoryPath);
         return createAndSaveNewNgrams();
     }
 
@@ -56,7 +59,6 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         if (!Files.exists(jsonDirectoryPath)) {
             try {
                 Files.createFile(jsonDirectoryPath);
-                System.out.println("File created successfully.");
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -67,13 +69,11 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     }
 
     private Texture<Texture<Script>> createNgrams() throws IOException {
-        System.out.println(Constants.ANSI_YELLOW + "Erstelle neue n-Gramme von Zeile " + start + " bis " + end + " der Datei)" + Constants.ANSI_RESET);
         Texture<Script> words = readAndFilterTxt();
         return new Texture<>(words.grammy(nGramLength));
     }
 
     private Texture<Script> readAndFilterTxt() throws IOException {
-        System.out.println(Constants.ANSI_CYAN + "Lese und filtere Text von Zeile " + start + " bis " + end + Constants.ANSI_RESET);
         Pattern toDelete = Pattern.compile("\\d+\\t|(https?:)?\\w+\\.\\w{2,3}|\\s+-\\s+|[^a-z'&\\- ]");
         Texture.Builder<Script> builder = new Texture.Builder<>();
 

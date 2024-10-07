@@ -40,6 +40,7 @@ public class SpellChecker {
         int batchSize = lines / epochs;
 
         for (int epoch = 0; epoch < epochs; epoch++) {
+            System.out.println("Epoch " + epoch);
             int start = epoch * batchSize;
             int end = (epoch + 1) * batchSize;
 
