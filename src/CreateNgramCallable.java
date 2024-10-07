@@ -4,6 +4,7 @@ import lingologs.Texture;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,7 +23,6 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private static final int BUFFER_SIZE = 10000;
     private final Path jsonDirectoryPath;
     private final String filename;
-    private final int thread;
 
 
     public CreateNgramCallable(Path filePath, int start, int end,
@@ -35,37 +35,53 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                 .resolve(filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.')) + "_" + threadID + ".json");
 
         this.filename = filePath.getFileName().toString();
-        this.thread = threadID;
     }
 
     @Override
     public Texture<Texture<Script>> call() throws Exception {
-        System.out.println("thread nummer " + thread + "schreibt in " + jsonDirectoryPath);
         return createAndSaveNewNgrams();
     }
 
     // Erstellt und speichert neue N-Gramme aus einer Textdatei
     private Texture<Texture<Script>> createAndSaveNewNgrams() throws IOException, ExecutionException, InterruptedException {
-
-        Nexus.JSONProcessor JP = new Nexus.JSONProcessor();
         Texture<Texture<Script>> fileNGrams = createNgrams();
+        appendNewNgrams(fileNGrams);
+        return fileNGrams;
+    }
 
-        List<List<Script>> convertedList = fileNGrams
+    private void appendNewNgrams(Texture<Texture<Script>> newNGrams) throws IOException {
+        Nexus.JSONProcessor JP = new Nexus.JSONProcessor();
+        List<List<Script>> convertedList = newNGrams
                 .stream()
                 .map((texture) -> new ArrayList<>(texture.stream().toList()))
                 .collect(Collectors.toList());
 
         Nexus.DataNote json = Nexus.DataNote.by(convertedList);
-        if (!Files.exists(jsonDirectoryPath)) {
-            try {
-                Files.createFile(jsonDirectoryPath);
-            } catch (IOException e) {
-                e.printStackTrace();
+        String jsonString = JP.present(json);
+
+        // Entferne die eckigen Klammern vom JSON-String
+        jsonString = jsonString.substring(1, jsonString.length() - 1);
+
+        try (RandomAccessFile file = new RandomAccessFile(jsonDirectoryPath.toFile(), "rw")) {
+            long length = file.length();
+            if (length > 0) {
+                // Gehe zum vorletzten Byte (vor dem ']')
+                file.seek(length - 1);
+                // Überprüfe, ob das letzte Zeichen ein ']' ist
+                if (file.read() == ']') {
+                    // Gehe ein Zeichen zurück und schreibe ',' + neue Daten + ']'
+                    file.seek(length - 1);
+                    file.writeBytes("," + jsonString + "]");
+                } else {
+                    // Falls kein ']' am Ende, füge einfach die neuen Daten hinzu
+                    file.seek(length);
+                    file.writeBytes(jsonString);
+                }
+            } else {
+                // Wenn die Datei leer ist, schreibe die kompletten Daten
+                file.writeBytes("[" + jsonString + "]");
             }
         }
-        String jsonString = JP.present(json);
-        Files.writeString(jsonDirectoryPath, jsonString);
-        return fileNGrams;
     }
 
     private Texture<Texture<Script>> createNgrams() throws IOException {

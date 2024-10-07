@@ -39,30 +39,28 @@ public class SpellChecker {
         int lines = (int) (totalLines * percent);
         int batchSize = lines / epochs;
 
-        for (int epoch = 0; epoch < epochs; epoch++) {
-            System.out.println("Epoch " + epoch);
-            int start = epoch * batchSize;
-            int end = (epoch + 1) * batchSize;
+        int batchProThread = batchSize / threads;
 
-            Texture<Texture<Script>> epochResult = multiThreadingCreateEpoch(filePath, nGramLength, start, end, threads, epoch);
+        for (int epoch = 0; epoch < epochs; epoch++) {
+            System.out.println(filename + " wird in der Epoche " + epoch + " geladen" + Constants.ANSI_BLUE);
+            Texture<Texture<Script>> epochResult = multiThreadingCreateEpoch(filePath, nGramLength, batchProThread, threads, epoch);
             ngramsBuilder.attach(epochResult);
         }
-
+        System.out.println(filename + " JsonErstellung abgeschlossen" + Constants.ANSI_PURPLE);
         return ngramsBuilder.toTexture();
     }
 
     // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion für eine Epoche
     private static Texture<Texture<Script>> multiThreadingCreateEpoch(Path filePath, int nGramLength,
-                                                                      int start, int end, int threads, int epochNumber) throws ExecutionException, InterruptedException {
+                                                                      int batchProThread, int threads, int epochNumber) throws ExecutionException, InterruptedException {
         Texture.Builder<Texture<Script>> epochBuilder = new Texture.Builder<>();
-        int batchSize = end - start;
-        int batchProThread = batchSize / threads;
+
 
         List<CreateNgramCallable> NGC = new ArrayList<>();
-        for (int j = 0; j < threads; j++) {
-            int threadStart = start + j * batchProThread;
-            int threadEnd = threadStart + batchProThread;
-            NGC.add(new CreateNgramCallable(filePath, threadStart, threadEnd, nGramLength, epochNumber));
+        for (int threadID = 0; threadID < threads; threadID++) {
+            int start = batchProThread * epochNumber * threadID;
+            int end = start + batchProThread;
+            NGC.add(new CreateNgramCallable(filePath, start, end, nGramLength, threadID));
         }
 
         ExecutorService ExSe = Executors.newFixedThreadPool(threads);
