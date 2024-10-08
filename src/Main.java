@@ -1,36 +1,31 @@
+import lingologs.Script;
+import lingologs.Texture;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 public class Main {
 
-	public static void consoleListener(SpellChecker spellChecker) {
+	public static void consoleListener(SpellChecker spellChecker) throws IOException, ExecutionException, InterruptedException {
 		Scanner scanner = new Scanner(System.in);
 		// Muster für zu löschende Elemente (auskommentiert)
 		System.out.println("Geben Sie Wörter ein um sie zu prüfen (oder 'exit' zum Beenden):");
-		String[] words;
-		String[] correctedWords;
+		Texture<Script> words;
+		Texture<Script> correctedWords;
 		while (true) {
 			String input = scanner.nextLine();
 			if (input.equalsIgnoreCase("exit")) {
 				System.out.println("Programm beendet.");
 				break;
 			}
-			words = input.toLowerCase().split(" ");
+			words = new Texture(new Script(input).toLower().split(" "));
 
-			System.out.println(Arrays.toString(words));
-
-			correctedWords = new String[words.length];
-			for(int i=0 ;i < words.length; i++){
-				if(i==0){
-					correctedWords[i] = spellChecker.getCorrection(null, words[i], words[i+1],false);
-				} else if (i == words.length-1) {
-					correctedWords[i] = spellChecker.getCorrection(words[i-1], words[i], null,false);
-				} else {
-					correctedWords[i] = spellChecker.getCorrection(words[i-1], words[i], words[i+1],false);
-				}
-			}
-			System.out.println(Arrays.toString(correctedWords));
+			Texture<Prediction> predictions = spellChecker.getPredictions(words,10,3,0.60);
+			correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
+			System.out.println(words);
+			System.out.println(correctedWords);
 		}
 
 		scanner.close();

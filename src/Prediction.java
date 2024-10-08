@@ -1,6 +1,8 @@
 import lingologs.Script;
 import lingologs.Texture;
 
+import java.util.Comparator;
+
 public class Prediction {
     private Script word;
 
@@ -12,14 +14,42 @@ public class Prediction {
     this.word = word;
     }
 
+    public Script getPrediction() {
+        if(suggestionsTriGram.extent()>0){
+            return suggestionsTriGram.at(0).getScript();
+        }
+        if(suggestionsBiGram.extent()>0){
+            return suggestionsBiGram.at(0).getScript();
+        }
+        if(suggestionsDirect.extent()>0){
+            return suggestionsDirect.at(0).getScript();
+        }
+        return new Script("NaN");
+    }
+
+
+    public void sort() {
+        Comparator<Suggestion> suggestionComparator = (s1, s2) -> {
+            int distanceCompare = Double.compare(s2.getScore(), s1.getScore());
+            if (distanceCompare != 0) {
+                return distanceCompare;
+            }
+            return Integer.compare(s2.getRepetitionCount(), s1.getRepetitionCount());
+        };
+
+        suggestionsTriGram.sort(suggestionComparator);
+        suggestionsBiGram.sort(suggestionComparator);
+        suggestionsDirect.sort(suggestionComparator);
+    }
+
 
 
     public void addSuggestionTriGram(Suggestion suggestion) {
         for (Suggestion s : suggestionsTriGram) {
             if (suggestion.equals(s)) {
-                suggestion.incrementRepetitionCount();
+                s.incrementRepetitionCount();
             } else {
-                suggestionsTriGram.add(suggestion);
+                suggestionsTriGram = suggestionsTriGram.add(suggestion);
             }
 
         }
@@ -27,9 +57,9 @@ public class Prediction {
     public void addSuggestionBiGram(Suggestion suggestion) {
         for (Suggestion s : suggestionsBiGram) {
             if (suggestion.equals(s)) {
-                suggestion.incrementRepetitionCount();
+                s.incrementRepetitionCount();
             } else {
-                suggestionsBiGram.add(suggestion);
+                suggestionsBiGram = suggestionsBiGram.add(suggestion);
             }
 
         }
@@ -37,9 +67,9 @@ public class Prediction {
     public void addSuggestionDirect(Suggestion suggestion) {
         for (Suggestion s : suggestionsDirect) {
             if (suggestion.equals(s)) {
-                suggestion.incrementRepetitionCount();
+                s.incrementRepetitionCount();
             } else {
-                suggestionsDirect.add(suggestion);
+                suggestionsDirect = suggestionsDirect.add(suggestion);
             }
 
         }

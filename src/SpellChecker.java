@@ -123,7 +123,7 @@ public class SpellChecker {
 
 
 
-    private Texture<Prediction> getFittingNgrams(Texture<Script> searchForWords, int threads, int ngrams,int acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
+    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams,double acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
 
         Texture.Builder<Prediction> textureBuilder = new Texture.Builder<>();
         for(Path jsonFolder : jsonFolders){
@@ -138,11 +138,13 @@ public class SpellChecker {
             }
 
         }
-        return textureBuilder.toTexture();
+        Texture<Prediction> predictions = textureBuilder.toTexture();
+        predictions.forEach(Prediction::sort);
+        return predictions;
     }
 
     // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
-    public Texture<Prediction> getMultiThreadingMatches(Path jsonFilePath, Texture<Script> searchForWords, int threads, int batchProThread, int ngrams,int acceptanceThreshold) throws ExecutionException, InterruptedException, IOException {
+    public Texture<Prediction> getMultiThreadingMatches(Path jsonFilePath, Texture<Script> searchForWords, int threads, int batchProThread, int ngrams,double acceptanceThreshold) throws ExecutionException, InterruptedException, IOException {
 
 
         Texture.Builder<Prediction> matching = new Texture.Builder<>();

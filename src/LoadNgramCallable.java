@@ -14,12 +14,12 @@ import java.util.concurrent.Callable;
 class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
     private final Texture<Texture<Script>> ngramsToSearch;
-    private final int acceptanceThreshold;
+    private final double acceptanceThreshold;
     Texture<Prediction> predictions = new Texture<>();
 
 
 
-    public LoadNgramCallable(Path jsonFilePath, Texture<Script> wordsToSearch, int ngrams,int acceptanceThreshold) {
+    public LoadNgramCallable(Path jsonFilePath, Texture<Script> wordsToSearch, int ngrams,double acceptanceThreshold) {
         this.jsonFilePath = jsonFilePath;
         this.ngramsToSearch = new Texture<>(wordsToSearch.grammy(ngrams));
         this.acceptanceThreshold = acceptanceThreshold;
