@@ -10,26 +10,25 @@ public class Main {
 
 	public static void consoleListener(SpellChecker spellChecker) throws IOException, ExecutionException, InterruptedException {
 		Scanner scanner = new Scanner(System.in);
-		// Muster für zu löschende Elemente (auskommentiert)
-		System.out.println("Geben Sie Wörter ein um sie zu prüfen (oder 'exit' zum Beenden):");
-		Texture<Script> words;
-		Texture<Script> correctedWords;
+		System.out.println("Geben Sie Wörter ein, um sie zu prüfen (oder 'exit' zum Beenden):");
+
 		while (true) {
 			String input = scanner.nextLine();
 			if (input.equalsIgnoreCase("exit")) {
 				System.out.println("Programm beendet.");
 				break;
 			}
-			words = new Texture(new Script(input).toLower().split(" "));
+			Texture<Script> words = new Texture<>(new Script(input.toLowerCase()).split(" "));
 
-			Texture<Prediction> predictions = spellChecker.getPredictions(words,10,3,0.60);
-			correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
-			System.out.println(words);
-			System.out.println(correctedWords);
+			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60);
+			Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
+
+			System.out.println("Eingegebene Wörter: " + words);
+			System.out.println("Korrigierte Wörter: " + correctedWords);
 		}
-
 		scanner.close();
 	}
+
 
 	// Quelle: https://wortschatz.uni-leipzig.de/en/download/English
 	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {

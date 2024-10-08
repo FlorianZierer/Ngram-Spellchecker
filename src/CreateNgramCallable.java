@@ -22,6 +22,7 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private final int nGramLength;
     private static final int BUFFER_SIZE = 10000;
     private final Path jsonDirectoryPath;
+    private final Path directoryPath;
     private final String filename;
 
 
@@ -32,9 +33,8 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         this.end = end;
         this.nGramLength = nGramLength;
         this.filename = filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.'));
-        this.jsonDirectoryPath = filePath.getParent().resolve("Json").resolve(filename)
-                .resolve(filename + "_" + threadID + ".json");
-
+        this.directoryPath = filePath.getParent().resolve("Json").resolve(filename);
+        this.jsonDirectoryPath = directoryPath.resolve(filename + "_" + threadID + ".json");
 
     }
 
@@ -47,6 +47,13 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
 
     // Erstellt und speichert neue N-Gramme aus einer Textdatei
     private void createAndSaveNewNgrams() throws IOException, ExecutionException, InterruptedException {
+        if (!Files.exists(directoryPath)) {
+            try {
+                Files.createDirectories(directoryPath);
+            } catch (IOException e) {
+                System.err.println("Failed to create Json directory: " + e.getMessage());
+            }
+        }
         if (!Files.exists(jsonDirectoryPath)) {
             try {
                 Files.createDirectories(jsonDirectoryPath);
@@ -92,10 +99,19 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
             }
         }
     }
+    private Texture<Script> addPadding(Texture<Script> wordsToSearch){
+        Texture.Builder<Script> paddedWords = new Texture.Builder<>();
+        paddedWords.attach(Script.of("")); // Füge null am Anfang hinzu
+        paddedWords.attach(wordsToSearch);
+        paddedWords.attach(Script.of("")); // Füge null am Ende hinzu
+        return paddedWords.toTexture();
+
+    }
 
     private Texture<Texture<Script>> createNgrams() throws IOException {
         Texture<Script> words = readAndFilterTxt();
-        return new Texture<>(words.grammy(nGramLength));
+        Texture<Script> paddedWords = addPadding(words);
+        return new Texture<>(paddedWords.grammy(nGramLength));
     }
 
     private Texture<Script> readAndFilterTxt() throws IOException {
@@ -125,27 +141,4 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                     }
 
                     // Verarbeite Buffer, wenn BUFFER_SIZE erreicht ist
-                    if (buffer.size() >= BUFFER_SIZE) {
-                        processBuffer(buffer, builder);
-                        buffer.clear();
-                    }
-                }
-            }
-
-            // Verarbeite verbleibende Wörter im Buffer
-            if (!buffer.isEmpty()) {
-                processBuffer(buffer, builder);
-            }
-        } catch (IOException e) {
-            System.err.println(Constants.ANSI_RED + "Fehler beim Lesen und Filtern des Textes" + Constants.ANSI_RESET);
-            throw new RuntimeException(e);
-        }
-        return builder.toTexture();
-    }
-
-    private void processBuffer(List<String> buffer, Texture.Builder<Script> builder) {
-        for (String word : buffer) {
-            builder.attach(new Script(word));
-        }
-    }
-}
+                    if (buf
