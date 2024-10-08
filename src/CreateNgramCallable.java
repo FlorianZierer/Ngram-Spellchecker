@@ -56,7 +56,7 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         }
         if (!Files.exists(jsonDirectoryPath)) {
             try {
-                Files.createDirectories(jsonDirectoryPath);
+                Files.createFile(jsonDirectoryPath);
             } catch (IOException e) {
                 System.err.println("Failed to create Json directory: " + e.getMessage());
             }

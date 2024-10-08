@@ -2,11 +2,13 @@ import lingolava.Legacy;
 import lingologs.Script;
 import lingologs.Texture;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class SpellChecker {
 
@@ -95,7 +97,6 @@ public class SpellChecker {
                 .toList();
 
         jsonFolders = Files.list(jsonDirectoryPath)
-                .filter(Files::isRegularFile)
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
 
@@ -121,39 +122,89 @@ public class SpellChecker {
         }
     }
 
+    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams, double acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
+        Texture.Builder<Prediction> allPredictions = new Texture.Builder<>();
 
-
-    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams,double acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
-
-        Texture.Builder<Prediction> textureBuilder = new Texture.Builder<>();
-        for(Path jsonFolder : jsonFolders){
-            List<Path> jsonFilePaths = Files
-                    .list(jsonFolder)
+        for (Path jsonFolder : jsonFolders) {
+            List<Path> jsonFilePaths = Files.list(jsonFolder)
                     .filter(path -> !path.getFileName().toString().startsWith("._"))
                     .toList();
-            for(Path jsonFile : jsonFilePaths){
-                int totalLines = (int) Files.lines(jsonFile, StandardCharsets.UTF_8).count();
-                int batchProThread = totalLines / (jsonFilePaths.size()+1);
-                textureBuilder.attach(getMultiThreadingMatches(jsonFile,searchForWords,threads,batchProThread,ngrams,acceptanceThreshold));
-            }
+            for (Path jsonFile : jsonFilePaths) {
+                int totalNgrams = countTotalNgrams(jsonFile);
+                System.out.println(totalNgrams);
+                int ngramsPerThread = totalNgrams / threads;
 
+                Texture<Prediction> predictions = new Texture<>(searchForWords.map(Prediction::new).toList());
+                Texture<Prediction> filePredictions = getMultiThreadingMatches(jsonFile, predictions, threads, ngramsPerThread, ngrams, acceptanceThreshold, totalNgrams);
+                allPredictions.attach(filePredictions);
+            }
         }
-        Texture<Prediction> predictions = textureBuilder.toTexture();
-        predictions.forEach(Prediction::sort);
-        return predictions;
+
+        Texture<Prediction> deduplicatedPredictions = condenseList(allPredictions.toTexture());
+        deduplicatedPredictions.forEach(Prediction::sort);
+        return deduplicatedPredictions;
+    }
+
+    private int countTotalNgrams(Path jsonFilePath) throws IOException {
+        int totalNgrams = 0;
+        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
+            int c;
+            int nestingLevel = 0;
+            boolean inString = false;
+            boolean escape = false;
+
+            while ((c = reader.read()) != -1) {
+                char ch = (char) c;
+
+                if (inString) {
+                    if (escape) {
+                        escape = false;
+                    } else if (ch == '\\') {
+                        escape = true;
+                    } else if (ch == '"') {
+                        inString = false;
+                    }
+                    continue;
+                } else {
+                    if (ch == '"') {
+                        inString = true;
+                        continue;
+                    }
+                }
+
+                if (ch == '[') {
+                    nestingLevel++;
+                } else if (ch == ']') {
+                    if (nestingLevel == 2) {
+                        // We've just closed an n-gram array
+                        totalNgrams++;
+                    }
+                    nestingLevel--;
+                }
+            }
+        }
+        return totalNgrams;
+    }
+
+
+    private Texture<Script> addPadding(Texture<Script> wordsToSearch) {
+        Texture.Builder<Script> paddedWords = new Texture.Builder<>();
+        paddedWords.attach(Script.of("")); // Füge null am Anfang hinzu
+        paddedWords.attach(wordsToSearch);
+        paddedWords.attach(Script.of("")); // Füge null am Ende hinzu
+        return paddedWords.toTexture();
+
     }
 
     // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
-    public Texture<Prediction> getMultiThreadingMatches(Path jsonFilePath, Texture<Script> searchForWords, int threads, int batchProThread, int ngrams,double acceptanceThreshold) throws ExecutionException, InterruptedException, IOException {
-
-
-        Texture.Builder<Prediction> matching = new Texture.Builder<>();
-
+    public Texture<Prediction> getMultiThreadingMatches(Path jsonFilePath, Texture<Prediction> predictions, int threads, int ngramsPerThread, int ngrams, double acceptanceThreshold, int totalNgrams) throws ExecutionException, InterruptedException, IOException {
+        Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
+        Texture<Script> paddedWords = addPadding(predictions.map(Prediction::getWord));
         List<LoadNgramCallable> NGC = new ArrayList<>();
         for (int threadID = 0; threadID < threads; threadID++) {
-            int start = batchProThread * threadID;
-            int end = start + batchProThread;
-            NGC.add(new LoadNgramCallable(jsonFilePath,searchForWords,ngrams,acceptanceThreshold));
+            int startNgramIndex = ngramsPerThread * threadID;
+            int endNgramIndex = (threadID == threads - 1) ? totalNgrams : startNgramIndex + ngramsPerThread;
+            NGC.add(new LoadNgramCallable(jsonFilePath, predictions, paddedWords, ngrams, acceptanceThreshold, startNgramIndex, endNgramIndex));
         }
 
         ExecutorService ExSe = Executors.newFixedThreadPool(threads);
@@ -168,13 +219,74 @@ public class SpellChecker {
                     } catch (InterruptedException | ExecutionException e) {
                         throw new RuntimeException(e);
                     }
-                })
-                .forEach(matching::attach);
+                }).forEach(predictionBuilder::attach);
 
         ExSe.shutdown();
-
-       return matching.toTexture();
+        return condenseList(predictionBuilder.toTexture());
     }
+
+    public Texture<Prediction> condenseList(Texture<Prediction> predictions) {
+
+        // Liste für bereits verarbeitete Vorhersagen-Wörter
+        List<Script> predictionsNames = new ArrayList<>();
+
+        // Liste für kondensierte Vorhersagen
+        List<Prediction> condenseList = new ArrayList<>();
+
+        // Durchlaufe die Liste der Vorhersagen
+        for (Prediction prediction : predictions) {
+            // Wenn das Wort noch nicht in der Liste ist, füge es hinzu
+            if (!(predictionsNames.contains(prediction.getWord()))) {
+                condenseList.add(prediction);
+                predictionsNames.add(prediction.getWord());
+            } else {
+                // Finde die existierende Vorhersage mit dem gleichen Wort
+                for (Prediction existingPrediction : condenseList) {
+                    if (existingPrediction.getWord().equals(prediction.getWord())) {
+                        // Verwende die vorhandene mergeSuggestions Methode
+                        existingPrediction.setSuggestionsTriGram(
+                                mergeSuggestions(existingPrediction.getSuggestionsTriGram(), prediction.getSuggestionsTriGram()));
+                        existingPrediction.setSuggestionsBiGram(
+                                mergeSuggestions(existingPrediction.getSuggestionsBiGram(), prediction.getSuggestionsBiGram()));
+                        existingPrediction.setSuggestionsDirect(
+                                mergeSuggestions(existingPrediction.getSuggestionsDirect(), prediction.getSuggestionsDirect()));
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Rückgabe der kondensierten Liste als neue Texture
+        return new Texture<>(condenseList);
+    }
+
+    // Methode zum Kombinieren von Vorschlägen
+    private Texture<Suggestion> mergeSuggestions(Texture<Suggestion> suggestions1, Texture<Suggestion> suggestions2) {
+        List<Suggestion> mergedList = new ArrayList<>();
+
+        if (suggestions1 != null) {
+            mergedList.addAll(suggestions1.toList());
+        }
+
+        if (suggestions2 != null) {
+            for (Suggestion suggestion : suggestions2) {
+                boolean found = false;
+                for (Suggestion existingSuggestion : mergedList) {
+                    if (Objects.equals(suggestion.getScript(), existingSuggestion.getScript())) {
+                        existingSuggestion.merge(suggestion);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    mergedList.add(suggestion);
+                }
+            }
+        }
+
+        return new Texture<>(mergedList);
+    }
+
 
     // Setzt das Korpus aus Dateien in einem Verzeichnis
     public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads, int epochs) {

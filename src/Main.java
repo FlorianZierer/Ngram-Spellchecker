@@ -25,8 +25,30 @@ public class Main {
 
 			System.out.println("Eingegebene Wörter: " + words);
 			System.out.println("Korrigierte Wörter: " + correctedWords);
+
+			for (int i = 0; i < words.extent(); i++) {
+				Script originalWord = words.at(i);
+				Prediction prediction = predictions.at(i);
+
+				System.out.println("\nWort: " + originalWord);
+				System.out.println("Korrigiert zu: " + prediction.getPrediction());
+
+				printSuggestions("TriGram", prediction.getSuggestionsTriGram());
+				printSuggestions("BiGram", prediction.getSuggestionsBiGram());
+				printSuggestions("Direct", prediction.getSuggestionsDirect());
+			}
 		}
 		scanner.close();
+	}
+
+	private static void printSuggestions(String category, Texture<Suggestion> suggestions) {
+		System.out.println("Vorschläge (" + category + "):");
+		int count = 0;
+		for (Suggestion suggestion : suggestions) {
+			if (count >= 5) break;
+			System.out.println("  - " + suggestion.getScript() + " (Distanz: " + suggestion.getDistance() + ", Frequenz: " + suggestion.getRepetitionCount() + ")");
+			count++;
+		}
 	}
 
 

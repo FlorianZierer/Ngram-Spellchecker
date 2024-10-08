@@ -2,10 +2,12 @@
   <library name="LingoLibry">
     <CLASSES>
       <root url="jar://$USER_HOME$/development/LingoLibry.jar!/" />
+      <root url="jar://D:/Downloads/LingoLibry.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
       <root url="jar://$USER_HOME$/development/LingoLibry.jar!/" />
+      <root url="jar://D:/Downloads/LingoLibry.jar!/" />
     </SOURCES>
   </library>
 </component>

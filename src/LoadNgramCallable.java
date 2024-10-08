@@ -3,66 +3,133 @@ import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 
-
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
     private final Texture<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;
-    Texture<Prediction> predictions = new Texture<>();
+    private final int startNgramIndex;
+    private final int endNgramIndex;
+    private final int ngramSize;
+    private final List<Prediction> mutablePredictions;
 
-
-
-    public LoadNgramCallable(Path jsonFilePath, Texture<Script> wordsToSearch, int ngrams,double acceptanceThreshold) {
+    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int startNgramIndex, int endNgramIndex) {
         this.jsonFilePath = jsonFilePath;
-        Texture<Script> paddedWords = addPadding(wordsToSearch);
-        // padding benötigt, weil [ich],[esse],[kuchen],[mit],[chicks] -> [[ich],[esse],[kuchen]], [[esse],[kuchen],[mit]], [[kuchen],[mit],[chicks]]
         this.ngramsToSearch = new Texture<>(paddedWords.grammy(ngrams));
         this.acceptanceThreshold = acceptanceThreshold;
-        wordsToSearch.stream().map(w -> predictions.add(new Prediction(w)));
+        this.startNgramIndex = startNgramIndex;
+        this.endNgramIndex = endNgramIndex;
+        this.ngramSize = ngrams;
+        this.mutablePredictions = new ArrayList<>(predictions.toList());
     }
 
     @Override
     public Texture<Prediction> call() throws Exception {
-        return loadExistingNgrams();
+        loadExistingNgrams();
+        return new Texture<>(mutablePredictions);
     }
 
-    private Texture<Script> addPadding(Texture<Script> wordsToSearch){
-            Texture.Builder<Script> paddedWords = new Texture.Builder<>();
-            paddedWords.attach(Script.of("")); // Füge null am Anfang hinzu
-            paddedWords.attach(wordsToSearch);
-            paddedWords.attach(Script.of("")); // Füge null am Ende hinzu
-            return paddedWords.toTexture();
+    // Load existing N-grams from a JSON file incrementally
+    private void loadExistingNgrams() throws IOException {
+        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
+            int c = reader.read();
+            // Skip any whitespace
+            while (Character.isWhitespace(c)) {
+                c = reader.read();
+            }
+            if (c != '[') {
+                throw new IOException("Expected '[' at the beginning of the JSON array");
+            }
 
-    }
+            int ngramIndex = 0;
+            boolean endOfFile = false;
 
-    // Lädt existierende N-Gramme aus einer JSON-Datei
-    private Texture<Prediction> loadExistingNgrams() throws IOException {
+            // Read n-gram arrays one by one
+            while (!endOfFile) {
+                // Skip any whitespace or commas
+                do {
+                    c = reader.read();
+                    if (c == -1) {
+                        endOfFile = true;
+                        break;
+                    }
+                } while (Character.isWhitespace(c) || c == ',');
 
-        String nGramJson = Files.readString(jsonFilePath);
-        Nexus.DataNote readNgram = Nexus.DataNote.byJSON(nGramJson);
+                if (endOfFile || c == ']') {
+                    // End of the top-level array
+                    break;
+                }
 
-        Texture<Texture<Script>> loadedNgrams = new Texture<>(readNgram.asList(d -> new Texture<>(d.asList(inner -> new Script(inner.asString())))));
-        loadedNgrams.forEach(this::filterForSuggestions);
+                if (c != '[') {
+                    throw new IOException("Expected '[' at the beginning of n-gram array");
+                }
 
-        return predictions;
+                StringBuilder ngramBuilder = new StringBuilder();
+                ngramBuilder.append((char) c);
+                int nestingLevel = 1;
+                boolean inString = false;
+                boolean escape = false;
 
-    }
+                while (nestingLevel > 0) {
+                    c = reader.read();
+                    if (c == -1) {
+                        throw new IOException("Unexpected end of file");
+                    }
+                    char ch = (char) c;
+                    ngramBuilder.append(ch);
 
-    private void filterForSuggestions(Texture<Script> input){
-                for(int i=0;i<ngramsToSearch.extent() ;i++){
-                    getSuggestion(ngramsToSearch.at(i),input,i);
+                    if (inString) {
+                        if (escape) {
+                            escape = false;
+                        } else if (ch == '\\') {
+                            escape = true;
+                        } else if (ch == '"') {
+                            inString = false;
+                        }
+                    } else {
+                        if (ch == '"') {
+                            inString = true;
+                        } else if (ch == '[') {
+                            nestingLevel++;
+                        } else if (ch == ']') {
+                            nestingLevel--;
+                        }
+                    }
+                }
+
+                if (ngramIndex >= startNgramIndex && ngramIndex < endNgramIndex) {
+                    // Now ngramBuilder contains the n-gram array as a String
+                    String ngramString = ngramBuilder.toString();
+                    Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramString);
+                    Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
+                    filterForSuggestions(ngram);
+                }
+
+                ngramIndex++;
+
+                if (ngramIndex >= endNgramIndex) {
+                    break;
+                }
+            }
         }
     }
 
+    private void filterForSuggestions(Texture<Script> inputNgram) {
+        for (int i = 0; i < ngramsToSearch.extent(); i++) {
+            getSuggestion(ngramsToSearch.at(i), inputNgram, i);
+        }
+    }
 
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
-        if (input.extent() != 3 || data.extent() != 3) {
-            return; // Überspringe, wenn nicht Trigramme
+        if (input.extent() != ngramSize || data.extent() != ngramSize) {
+            return; // Skip if not matching n-gram size
         }
 
         double distance1 = distance(input.at(0), data.at(0));
@@ -73,22 +140,17 @@ class LoadNgramCallable implements Callable<Texture<Prediction>> {
         boolean distance2Valid = distance2 >= acceptanceThreshold;
         boolean distance3Valid = distance3 >= acceptanceThreshold;
 
-        // TriGram-Bedingung
         if (distance1Valid && distance2Valid && distance3Valid) {
-            predictions.at(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
-        }
-        // BiGram-Bedingung (eines von distance1 oder distance3 ist gültig)
-        else if ((distance1Valid || distance3Valid) && distance2Valid) {
-            predictions.at(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
-        }
-        // Direkte Suggestion
-        else if (distance2Valid && !distance1Valid && !distance3Valid) {
-            predictions.at(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
+            mutablePredictions.get(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
+        } else if ((distance1Valid || distance3Valid) && distance2Valid) {
+            mutablePredictions.get(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
+        } else if (distance2Valid && !distance1Valid && !distance3Valid) {
+            mutablePredictions.get(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
         }
     }
 
 
-    // Berechnet die Levenshtein-Distanz zwischen zwei Wörtern
+    // Calculates the Levenshtein distance between two words
     static public Double distance(Script word1, Script word2) {
         if (word1.toString().isEmpty() || word2.toString().isEmpty()) {
             return -1.0;

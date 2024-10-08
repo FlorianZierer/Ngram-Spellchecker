@@ -1,3 +1,4 @@
+import lingolava.Mathx;
 import lingologs.Script;
 
 class Suggestion {
@@ -6,7 +7,7 @@ class Suggestion {
     // Das zugehörige Skript
     private Script script;
     // Zähler für Wiederholungen
-    private int repetitionCount;
+    private int repetitionCount = 0;
 
     // Konstruktor für einen neuen Vorschlag
     public Suggestion(double distance, Script script) {
@@ -14,16 +15,25 @@ class Suggestion {
         this.script = script;
     }
 
+    public void merge(Suggestion s){
+        if(s.script.equals(script)){
+            System.out.println("Merging " + this.script + ": " + this.repetitionCount + " + " + s.repetitionCount);
+            this.repetitionCount = s.repetitionCount + repetitionCount;
+            this.distance = Math.max(s.distance, distance);
+            System.out.println("Result: " + this.repetitionCount);
+        }
+    }
+
     // Erhöht den Wiederholungszähler
     public void incrementRepetitionCount() {
         this.repetitionCount++;
     }
 
-    public double getScore() {
+    public double getDistance() {
         return distance;
     }
 
-    public void setScore(double distance) {
+    public void setDistance(double distance) {
         this.distance = distance;
     }
 
