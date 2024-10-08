@@ -32,7 +32,7 @@ public class Main {
 	}
 
 	// Quelle: https://wortschatz.uni-leipzig.de/en/download/English
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
 		Path path = Path.of("./Transcripts/");
 
 		double percent = 1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
