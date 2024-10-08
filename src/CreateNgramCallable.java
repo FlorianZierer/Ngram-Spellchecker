@@ -141,4 +141,27 @@ class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                     }
 
                     // Verarbeite Buffer, wenn BUFFER_SIZE erreicht ist
-                    if (buf
+                    if (buffer.size() >= BUFFER_SIZE) {
+                        processBuffer(buffer, builder);
+                        buffer.clear();
+                    }
+                }
+            }
+
+            // Verarbeite verbleibende Wörter im Buffer
+            if (!buffer.isEmpty()) {
+                processBuffer(buffer, builder);
+            }
+        } catch (IOException e) {
+            System.err.println(Constants.ANSI_RED + "Fehler beim Lesen und Filtern des Textes" + Constants.ANSI_RESET);
+            throw new RuntimeException(e);
+        }
+        return builder.toTexture();
+    }
+
+    private void processBuffer(List<String> buffer, Texture.Builder<Script> builder) {
+        for (String word : buffer) {
+            builder.attach(new Script(word));
+        }
+    }
+}
