@@ -1,47 +1,77 @@
+import lingolava.Legacy;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 
-import java.io.BufferedReader;
+
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-class LoadNgramCallable implements Callable<Texture<Texture<Script>>> {
+class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
+    private final Texture<Texture<Script>> ngramsToSearch;
+    private final int acceptanceThreshold;
+    Texture<Prediction> predictions = new Texture<>();
 
 
-    public LoadNgramCallable(Path jsonFilePath) {
+
+    public LoadNgramCallable(Path jsonFilePath, Texture<Script> wordsToSearch, int ngrams,int acceptanceThreshold) {
         this.jsonFilePath = jsonFilePath;
+        this.ngramsToSearch = new Texture<>(wordsToSearch.grammy(ngrams));
+        this.acceptanceThreshold = acceptanceThreshold;
+        wordsToSearch.stream().map(w -> predictions.add(new Prediction(w)));
     }
 
     @Override
-    public Texture<Texture<Script>> call() throws Exception {
+    public Texture<Prediction> call() throws Exception {
         return loadExistingNgrams();
     }
 
     // Lädt existierende N-Gramme aus einer JSON-Datei
-    private Texture<Texture<Script>> loadExistingNgrams() throws IOException {
-        System.out.println("Lade existierende N-Gramme aus: " + jsonFilePath);
-        long startTime = System.nanoTime();
+    private Texture<Prediction> loadExistingNgrams() throws IOException {
+
         String nGramJson = Files.readString(jsonFilePath);
         Nexus.DataNote readNgram = Nexus.DataNote.byJSON(nGramJson);
-        Texture<Texture<Script>> wordsGrammyfied = new Texture<>(
-                readNgram.asList(d ->
-                        new Texture<>(d.asList(inner ->
-                                new Script(inner.asString())
-                        ))
-                )
-        );
-        long endTime = System.nanoTime();
-        System.out.println(Constants.ANSI_GREEN + "N-Gramme geladen in " + ((endTime - startTime) / 1_000_000_000.0) + " Sekunden." + Constants.ANSI_RESET);
-        return wordsGrammyfied;
+
+        Texture<Texture<Script>> loadedNgrams = new Texture<>(readNgram.asList(d -> new Texture<>(d.asList(inner -> new Script(inner.asString())))));
+        loadedNgrams.forEach(this::filterForSuggestions);
+
+        return predictions;
+
+    }
+
+    private void filterForSuggestions(Texture<Script> input){
+                for(int i=0;i<ngramsToSearch.extent() ;i++){
+                    getSuggestion(ngramsToSearch.at(i),input,i);
+        }
+    }
+
+
+    private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
+        if (input.extent() != 3 || data.extent() != 3) {
+            return; // Skip if not trigrams
+        }
+        double distance1 = distance(input.at(0), data.at(0));
+        double distance2 = distance(input.at(1), data.at(1));
+        double distance3 = distance(input.at(2), data.at(2));
+
+        if (distance1 >= acceptanceThreshold && distance3 >= acceptanceThreshold && distance2 >= acceptanceThreshold) {
+            predictions.at(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
+        }
+        if ((distance1 >= acceptanceThreshold || distance3 >= acceptanceThreshold) && distance2 >= acceptanceThreshold) {
+            predictions.at(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
+        }
+        if (distance2 >= acceptanceThreshold && distance1 < acceptanceThreshold && distance3 < acceptanceThreshold) {
+            predictions.at(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
+        }
+    }
+
+    // Berechnet die Levenshtein-Distanz zwischen zwei Wörtern
+    static public Double distance(Script word1, Script word2) {
+        return word1.similares(word2, Legacy.Similitude.Levenshtein);
     }
 }

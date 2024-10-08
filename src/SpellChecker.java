@@ -1,5 +1,4 @@
 import lingolava.Legacy;
-import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 
@@ -8,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class SpellChecker {
 
@@ -18,14 +16,11 @@ public class SpellChecker {
     // Pfad zum Evaluierungsdatensatz
     private static final String EVALUATION_DATASET_PATH = "./Transcripts/Evaluation/evaluation_dataset.json";
 
+    List<Path> jsonFolders;
+
     // Konstruktor mit Akzeptanzschwellenwert
     public SpellChecker(Double acceptanceThreshold) {
         this.acceptanceThreshold = acceptanceThreshold;
-    }
-
-    // Berechnet die Levenshtein-Distanz zwischen zwei Wörtern
-    static public Double distance(Script word1, Script word2) {
-        return word1.similares(word2, Legacy.Similitude.Levenshtein);
     }
 
     public static Texture<Texture<Script>> multiThreadingCreate(Path directoryPath, String filename, int nGramLength,
@@ -80,51 +75,6 @@ public class SpellChecker {
         return epochBuilder.toTexture();
     }
 
-    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
-    public static Texture<Texture<Script>> multiThreadingLoad(Path jsonFilePath,double percent,int threads) throws ExecutionException, InterruptedException, IOException {
-        Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
-
-        long fileSize = Files.size(jsonFilePath);
-        long processSize = (long) (fileSize * percent);
-        int chunkSize = (int) (processSize / threads);
-
-        List<LoadNgramCallable> NGC = new ArrayList<>();
-        for (int i = 0; i < threads; i++) {
-            int start = i * chunkSize;
-            int end = (i == threads - 1) ? (int) processSize : (i + 1) * chunkSize;
-            NGC.add(new LoadNgramCallable(jsonFilePath));
-        }
-
-        ExecutorService ExSe = Executors.newFixedThreadPool(threads);
-
-        List<Future<Texture<Texture<Script>>>> future = NGC.stream()
-                .map(ExSe::submit).toList();
-
-        future.stream()
-                .map(f -> {
-                    try {
-                        return f.get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .forEach(ngramsBuilder::attach);
-
-        ExSe.shutdown();
-
-        return ngramsBuilder.toTexture();
-    }
-
-    // Setzt das Korpus aus Dateien in einem Verzeichnis
-    public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads, int epochs) {
-        try {
-            getNgrams(directoryPath, nGramLength, threads, percent, epochs);
-
-        } catch (IOException | ExecutionException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
     // Extrahiert N-Gramme aus Dateien im angegebenen Verzeichnis
     public void getNgrams(Path directoryPath, Integer nGramLength, int threads, double percent, int epochs) throws ExecutionException, InterruptedException, IOException {
 
@@ -144,7 +94,7 @@ public class SpellChecker {
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
 
-        List<Path> jsonFolders = Files.list(jsonDirectoryPath)
+        jsonFolders = Files.list(jsonDirectoryPath)
                 .filter(Files::isRegularFile)
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
@@ -173,83 +123,65 @@ public class SpellChecker {
 
 
 
-    // Korrigiert ein Wort basierend auf dem Kontext (vorheriges und nachfolgendes Wort)
-    public String getCorrection(String word1, String word2, String word3, boolean directOnly) {
-        Map<String, Suggestion> suggestionsTriGram = new HashMap<>();
-        Map<String, Suggestion> suggestionsBiGram = new HashMap<>();
-        Map<String, Suggestion> suggestionsDirect = new HashMap<>();
+    private Texture<Prediction> getFittingNgrams(Texture<Script> searchForWords, int threads, int ngrams,int acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
 
-        double highestSimilarityTriGram = 0.0;
-        double highestSimilarityBiGram = 0.0;
-        double highestSimilarityDirect = 0.0;
+        Texture.Builder<Prediction> textureBuilder = new Texture.Builder<>();
+        for(Path jsonFolder : jsonFolders){
+            List<Path> jsonFilePaths = Files
+                    .list(jsonFolder)
+                    .filter(path -> !path.getFileName().toString().startsWith("._"))
+                    .toList();
+            for(Path jsonFile : jsonFilePaths){
+                int totalLines = (int) Files.lines(jsonFile, StandardCharsets.UTF_8).count();
+                int batchProThread = totalLines / (jsonFilePaths.size()+1);
+                textureBuilder.attach(getMultiThreadingMatches(jsonFile,searchForWords,threads,batchProThread,ngrams,acceptanceThreshold));
+            }
 
-        for (Texture<Script> ngram : ngrams) {
-            double distance1 = word1 == null ? -1 : distance(ngram.at(0), new Script(word1));
-            double distance2 = distance(ngram.at(1), new Script(word2));
-            double distance3 = word3 == null ? -1 : distance(ngram.at(2), new Script(word3));
-            Script script = new Script(ngram.at(1));
-            String scriptString = script.toString();
+        }
+        return textureBuilder.toTexture();
+    }
 
-            if (!directOnly) {
-                if (word1 != null && word3 != null) {
-                    if ((distance1 >= acceptanceThreshold && distance3 >= acceptanceThreshold) && (distance2 > highestSimilarityTriGram)) {
-                        suggestionsTriGram.clear();
-                        suggestionsTriGram.put(scriptString, new Suggestion(distance2, script));
-                        highestSimilarityTriGram = distance2;
-                    } else if ((distance1 >= acceptanceThreshold && distance3 >= acceptanceThreshold) && (distance2 == highestSimilarityTriGram)) {
-                        updateSuggestion(suggestionsTriGram, scriptString, distance2, script);
+    // Parallele Verarbeitung von Dateien zur N-Gramm-Extraktion
+    public Texture<Prediction> getMultiThreadingMatches(Path jsonFilePath, Texture<Script> searchForWords, int threads, int batchProThread, int ngrams,int acceptanceThreshold) throws ExecutionException, InterruptedException, IOException {
+
+
+        Texture.Builder<Prediction> matching = new Texture.Builder<>();
+
+        List<LoadNgramCallable> NGC = new ArrayList<>();
+        for (int threadID = 0; threadID < threads; threadID++) {
+            int start = batchProThread * threadID;
+            int end = start + batchProThread;
+            NGC.add(new LoadNgramCallable(jsonFilePath,searchForWords,ngrams,acceptanceThreshold));
+        }
+
+        ExecutorService ExSe = Executors.newFixedThreadPool(threads);
+
+        List<Future<Texture<Prediction>>> future = NGC.stream()
+                .map(ExSe::submit).toList();
+
+        future.stream()
+                .map(f -> {
+                    try {
+                        return f.get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
                     }
-                }
+                })
+                .forEach(matching::attach);
 
-                if ((distance1 >= acceptanceThreshold || distance3 >= acceptanceThreshold) && (distance2 > highestSimilarityBiGram)) {
-                    suggestionsBiGram.clear();
-                    suggestionsBiGram.put(scriptString, new Suggestion(distance2, script));
-                    highestSimilarityBiGram = distance2;
-                } else if ((distance1 >= acceptanceThreshold || distance3 >= acceptanceThreshold) && (distance2 == highestSimilarityBiGram)) {
-                    updateSuggestion(suggestionsBiGram, scriptString, distance2, script);
-                }
-            }
+        ExSe.shutdown();
 
-            if (distance2 > highestSimilarityDirect) {
-                suggestionsDirect.clear();
-                suggestionsDirect.put(scriptString, new Suggestion(distance2, script));
-                highestSimilarityDirect = distance2;
-            } else if (distance2 == highestSimilarityDirect) {
-                updateSuggestion(suggestionsDirect, scriptString, distance2, script);
-            }
+       return matching.toTexture();
+    }
+
+    // Setzt das Korpus aus Dateien in einem Verzeichnis
+    public void setCorpora(Path directoryPath, double percent, Integer nGramLength, int threads, int epochs) {
+        try {
+            getNgrams(directoryPath, nGramLength, threads, percent, epochs);
+
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            e.printStackTrace();
         }
-
-        if (!directOnly) {
-            printInfo(suggestionsTriGram, "TriGram");
-            printInfo(suggestionsBiGram, "BiGram");
-        }
-        printInfo(suggestionsDirect, "Direct");
-
-        Map<String, Suggestion> suggestions = new HashMap<>();
-
-        if (directOnly) {
-            if (highestSimilarityDirect >= acceptanceThreshold) {
-                suggestions.putAll(suggestionsDirect);
-            }
-        } else {
-            if (highestSimilarityTriGram >= acceptanceThreshold) {
-                suggestions.putAll(suggestionsTriGram);
-            } else if (highestSimilarityBiGram >= acceptanceThreshold) {
-                suggestions.putAll(suggestionsBiGram);
-            } else if (highestSimilarityDirect >= acceptanceThreshold) {
-                suggestions.putAll(suggestionsDirect);
-            }
-        }
-
-        if (suggestions.isEmpty()) {
-            return word2;
-        }
-
-        return suggestions.values().stream()
-                .max(Comparator.comparingDouble((Suggestion s) -> s.score)
-                        .thenComparingInt(s -> s.repetitionCount))
-                .map(s -> s.script.toString())
-                .orElse(word2);
     }
 
     // Aktualisiert die Vorschläge und deren Wiederholungszähler
@@ -265,6 +197,6 @@ public class SpellChecker {
     private void printInfo(Map<String, Suggestion> suggestions, String category) {
         System.out.println(category + " Vorschläge:");
         suggestions.forEach((script, suggestion) ->
-                System.out.println(script + " (Punktzahl: " + suggestion.score + ", Wiederholungen: " + suggestion.repetitionCount + ")"));
+                System.out.println(script + " Punktzahl: " + ", Wiederholungen: "));
     }
 }

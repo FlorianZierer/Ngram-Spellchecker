@@ -1,22 +1,45 @@
 import lingologs.Script;
 
 class Suggestion {
-    // Bewertung des Vorschlags
-    double score;
+    // Distanz des Vorschlags
+    private double distance;
     // Das zugehörige Skript
-    Script script;
+    private Script script;
     // Zähler für Wiederholungen
-    int repetitionCount;
+    private int repetitionCount;
 
     // Konstruktor für einen neuen Vorschlag
-    public Suggestion(double score, Script script) {
-        this.score = score;
+    public Suggestion(double distance, Script script) {
+        this.distance = distance;
         this.script = script;
-        this.repetitionCount = 1;
     }
 
     // Erhöht den Wiederholungszähler
     public void incrementRepetitionCount() {
         this.repetitionCount++;
+    }
+
+    public double getScore() {
+        return distance;
+    }
+
+    public void setScore(double distance) {
+        this.distance = distance;
+    }
+
+    public Script getScript() {
+        return script;
+    }
+
+    public void setScript(Script script) {
+        this.script = script;
+    }
+
+    public int getRepetitionCount() {
+        return repetitionCount;
+    }
+
+    public void setRepetitionCount(int repetitionCount) {
+        this.repetitionCount = repetitionCount;
     }
 }
