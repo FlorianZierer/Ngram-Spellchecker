@@ -1,16 +1,16 @@
 package util;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class FileUtils {
-    private static final Pattern SENTENCE_END_PATTERN = Pattern.compile(",\"\"]");
-    private static final Pattern NGRAM_PATTERN = Pattern.compile("\\[\"([^\"]*)\",\"([^\"]*)\",\"([^\"]*)\"\\]");
 
     public static List<Path> getJsonFolders(Path directoryPath) throws IOException {
         return Files.list(directoryPath)
@@ -43,20 +43,6 @@ public class FileUtils {
         }
     }
 
-    public static int countSentences(Path jsonFilePath) throws IOException {
-        int sentenceCount = 0;
-        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                Matcher matcher = SENTENCE_END_PATTERN.matcher(line);
-                while (matcher.find()) {
-                    sentenceCount++;
-                }
-            }
-        }
-        return sentenceCount;
-    }
-
     public static String processBatch(String batchContent, boolean isFirstBatch, boolean isLastBatch) {
         if (!isFirstBatch) {
             batchContent = batchContent.replaceFirst("^,", "[");
@@ -68,7 +54,42 @@ public class FileUtils {
     }
 
     public static int calculateBatchSize(Path jsonFilePath, int epochs) throws IOException {
-        int totalSentences = countSentences(jsonFilePath);
+        int totalSentences = countSentences(String.valueOf(jsonFilePath));
         return (int) Math.ceil((double) totalSentences / epochs);
+    }
+
+    public static int countSentences(String filePath) throws IOException {
+        int sentenceCount = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sentenceCount += countOccurrences(line, "\"\",\"\"");
+            }
+        }
+        return sentenceCount;
+    }
+
+    private static int countOccurrences(String str, String subStr) {
+        int count = 0;
+        int lastIndex = 0;
+        while (lastIndex != -1) {
+            lastIndex = str.indexOf(subStr, lastIndex);
+            if (lastIndex != -1) {
+                count++;
+                lastIndex += subStr.length();
+            }
+        }
+        return count;
+    }
+
+    public static List<String> readBatch(BufferedReader reader, int batchSize) throws IOException {
+        List<String> batch = new ArrayList<>();
+        String line;
+        int count = 0;
+        while ((line = reader.readLine()) != null && count < batchSize) {
+            batch.add(line);
+            count++;
+        }
+        return batch;
     }
 }

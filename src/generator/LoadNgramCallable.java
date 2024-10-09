@@ -15,26 +15,19 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class LoadNgramCallable implements Callable<Texture<Prediction>> {
-    private static final Pattern NGRAM_PATTERN = Pattern.compile("\\[\"([^\"]*)\",\"([^\"]*)\",\"([^\"]*)\"\\]");
     private final Path jsonFilePath;
     private final List<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;
-    private final int startNgramIndex;
-    private final int endNgramIndex;
     private final int ngramSize;
     private final List<Prediction> mutablePredictions;
     private final int threadID;
 
-    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int threadID, int ngrams, double acceptanceThreshold, int startNgramIndex, int endNgramIndex) {
+    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int threadID, int ngrams, double acceptanceThreshold) {
         this.jsonFilePath = jsonFilePath;
         this.ngramsToSearch = paddedWords.grammy(ngrams);
         this.acceptanceThreshold = acceptanceThreshold;
-        this.startNgramIndex = startNgramIndex;
-        this.endNgramIndex = endNgramIndex;
         this.ngramSize = ngrams;
         this.mutablePredictions = new ArrayList<>(predictions.toList());
         this.threadID = threadID;
@@ -49,40 +42,49 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private void loadExistingNgrams() throws IOException {
         int batchSize = FileUtils.calculateBatchSize(jsonFilePath, 1); // Assuming 1 epoch for simplicity
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            StringBuilder batchBuilder = new StringBuilder();
+            List<String> batch = new ArrayList<>();
             String line;
-            int lineCount = 0;
             boolean isFirstBatch = true;
 
             while ((line = reader.readLine()) != null) {
-                batchBuilder.append(line);
-                lineCount++;
+                batch.add(line);
 
-                if (lineCount >= batchSize) {
-                    processBatch(batchBuilder.toString(), isFirstBatch, false);
-                    batchBuilder = new StringBuilder();
-                    lineCount = 0;
+                if (batch.size() >= batchSize) {
+                    processNgramBatch(batch, isFirstBatch);
+                    batch.clear();
                     isFirstBatch = false;
                 }
             }
 
-            if (batchBuilder.length() > 0) {
-                processBatch(batchBuilder.toString(), isFirstBatch, true);
+            if (!batch.isEmpty()) {
+                processNgramBatch(batch, isFirstBatch);
             }
         }
     }
 
-    private void processBatch(String batchContent, boolean isFirstBatch, boolean isLastBatch) {
-        String processedBatch = FileUtils.processBatch(batchContent, isFirstBatch, isLastBatch);
-        Nexus.DataNote batchNote = Nexus.DataNote.byJSON(processedBatch);
-        List<Texture<Script>> ngrams = batchNote.asList(inner -> {
-            List<Script> ngramScripts = inner.asList(str -> Script.of(str.asString()));
-            return new Texture<>(ngramScripts);
-        });
-
-        for (Texture<Script> ngram : ngrams) {
-            filterForSuggestions(ngram);
+    private void processNgramBatch(List<String> batch, boolean isFirstBatch) throws IOException {
+        StringBuilder ngramBuilder = new StringBuilder();
+        if (!isFirstBatch) {
+            ngramBuilder.append("[");
         }
+
+        for (int i = 0; i < batch.size(); i++) {
+            if (i > 0) {
+                ngramBuilder.append(",");
+            }
+            ngramBuilder.append(batch.get(i));
+        }
+
+        if (batch.size() < FileUtils.calculateBatchSize(jsonFilePath, 1)) {
+            ngramBuilder.append("]");
+        } else {
+            ngramBuilder.setLength(ngramBuilder.length() - 1);
+            ngramBuilder.append("]");
+        }
+
+        Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramBuilder.toString());
+        Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
+        filterForSuggestions(ngram);
     }
 
     private void filterForSuggestions(Texture<Script> inputNgram) {

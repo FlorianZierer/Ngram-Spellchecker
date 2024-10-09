@@ -28,7 +28,7 @@ public class PredictionGenerator {
         int threads = jsonFiles.size();
         List<Integer> ngramsPerThreads = new ArrayList<>();
         for (Path jsonFile : jsonFiles) {
-            int totalSentences = FileUtils.countSentences(jsonFile);
+            int totalSentences = FileUtils.countSentences(String.valueOf(jsonFile));
             int ngramsPerThread = totalSentences / threads;
             ngramsPerThreads.add(ngramsPerThread);
         }
@@ -48,7 +48,7 @@ public class PredictionGenerator {
         for (Path jsonFile : jsonFiles) {
             int startNgramIndex = epoch * ngramsPerThreads.get(thread);
             int endNgramIndex = startNgramIndex + ngramsPerThreads.get(thread);
-            ngramCallables.add(new LoadNgramCallable(jsonFile, predictions, paddedWords,thread, ngrams, acceptanceThreshold, startNgramIndex, endNgramIndex));
+            ngramCallables.add(new LoadNgramCallable(jsonFile, predictions, paddedWords,thread, ngrams, acceptanceThreshold));
             thread++;
         }
 
