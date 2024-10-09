@@ -1,5 +1,6 @@
 package generator;
 
+import constants.Constants;
 import lingolava.Tuple.Couple;
 import lingologs.Script;
 import lingologs.Texture;
@@ -31,9 +32,10 @@ public class PredictionGenerator {
         }
 
         for (int epoch = 0; epoch < epochs; epoch++) {
+            System.out.println(Constants.ANSI_RESET + "Searching json folder: " + jsonFiles.getFirst().getParent().toString() + " in epoch: " + epoch +  Constants.ANSI_RESET );
             predictionBuilder.attach(predictEpochMultiThreaded(jsonFiles, batchSizes, predictions, paddedWords, nGramLength, acceptanceThreshold, epoch));
         }
-        return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
+        return predictionBuilder.toTexture();
     }
 
     // Hauptmethode zur Generierung von Vorhersagen

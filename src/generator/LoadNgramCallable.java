@@ -7,6 +7,7 @@ import model.Prediction;
 import model.Suggestion;
 import util.FileUtils;
 import util.PredictionUtils;
+import util.SpellCheckerUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -88,6 +89,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         }
     }
 
+    // Ermittelt Vorschläge basierend auf den N-Grammen
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
         if (input.extent() != ngramSize || data.extent() != ngramSize) {
             return;
@@ -106,7 +108,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
             prediction.addSuggestionTriGram(new Suggestion(distances[1], data.at(1)));
         } else if ((distanceValid[0] || distanceValid[2]) && distanceValid[1]) {
             prediction.addSuggestionBiGram(new Suggestion(distances[1], data.at(1)));
-        } else if (distanceValid[1]) {
+        } else if (distanceValid[1] && !distanceValid[0] && !distanceValid[2]) {
             prediction.addSuggestionDirect(new Suggestion(distances[1], data.at(1)));
         }
     }

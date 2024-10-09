@@ -72,8 +72,8 @@ public class Main {
 		int epochs = 10;
 		Double acceptanceThreshold = 0.65;
 
-		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold,mircothreads);
-		spellChecker.setCorpora(path, percent, epochs);
+		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold,mircothreads,epochs);
+		spellChecker.setCorpora(path, percent);
 
 		//SpellChecker evaluieren
 		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);

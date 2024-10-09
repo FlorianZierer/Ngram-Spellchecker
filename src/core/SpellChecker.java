@@ -20,15 +20,17 @@ public class SpellChecker {
     private final double acceptanceThreshold;
     private List<Path> jsonFolders;
     private int createThreads;
+    private final int epochs;
 
     // Konstruktor, der den Akzeptanzschwellenwert für Vorhersagen setzt
-    public SpellChecker(double acceptanceThreshold, int threads) {
+    public SpellChecker(double acceptanceThreshold, int threads,int epochs) {
         this.acceptanceThreshold = acceptanceThreshold;
         this.createThreads = threads;
+        this.epochs = epochs;
     }
 
     // Methode zum Setzen und Generieren der Korpora für die Rechtschreibprüfung
-    public void setCorpora(Path directoryPath, double percent, int epochs) {
+    public void setCorpora(Path directoryPath, double percent) {
         try {
             // Generiert N-Gramme aus den Trainingsdaten
             NgramGenerator.generateNgrams(directoryPath, nGramLength, createThreads, percent, epochs);
@@ -45,12 +47,11 @@ public class SpellChecker {
 
         // Durchsucht alle JSON-Dateien nach Vorhersagen
         for (Path jsonFolder : jsonFolders) {
-            int threads = FileUtils.getJsonFiles(jsonFolder).size();
             List<Path> jsonFilePaths = FileUtils.getJsonFiles(jsonFolder);
-                //System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
+
 
                 // Generiert Vorhersagen für die aktuelle JSON-Datei
-                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFilePaths, searchForWords, threads, nGramLength, acceptanceThreshold, directModeEnabled);
+                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFilePaths, searchForWords, epochs, nGramLength, acceptanceThreshold, directModeEnabled);
                 allPredictions.attach(filePredictions);
         }
 
