@@ -1,6 +1,8 @@
+package model;
+
 import lingologs.Script;
 
-class Suggestion {
+public class Suggestion {
     // Distanz des Vorschlags
     private double distance;
     // Das zugehörige Skript

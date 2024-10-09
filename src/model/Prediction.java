@@ -1,3 +1,5 @@
+package model;
+
 import lingologs.Script;
 import lingologs.Texture;
 

@@ -1,5 +1,9 @@
+import core.SpellChecker;
+import core.SpellcheckerEvaluator;
 import lingologs.Script;
 import lingologs.Texture;
+import model.Prediction;
+import util.SpellCheckerUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -8,7 +12,7 @@ import java.util.concurrent.ExecutionException;
 
 public class Main {
 
-	public static void consoleListener(SpellChecker spellChecker,boolean directmode) throws IOException, ExecutionException, InterruptedException {
+	public static void consoleListener(SpellChecker spellChecker, boolean directmode) throws IOException, ExecutionException, InterruptedException {
 		Scanner scanner = new Scanner(System.in);
 		System.out.println("Geben Sie Wörter ein, um sie zu prüfen (oder 'exit' zum Beenden):");
 
@@ -20,7 +24,7 @@ public class Main {
 			}
 			Texture<Script> words = new Texture<>(new Script(input.toLowerCase()).split(" "));
 
-			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60,directmode);
+			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3,directmode);
 			Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
 			for (int i = 0; i < words.extent(); i++) {
@@ -56,6 +60,6 @@ public class Main {
 		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
 		evaluator.evaluate(false);
 
-		consoleListener(spellChecker,false);
+		//consoleListener(spellChecker,false);
 	}
 }

@@ -1,3 +1,6 @@
+package generator;
+
+import constants.Constants;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
@@ -15,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
+public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private final Path filePath;
     private final int start;
     private final int end;

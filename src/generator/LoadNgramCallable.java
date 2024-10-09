@@ -1,7 +1,11 @@
+package generator;
+
 import lingolava.Legacy;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
+import model.Prediction;
+import model.Suggestion;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-class LoadNgramCallable implements Callable<Texture<Prediction>> {
+public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
     private final List<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;

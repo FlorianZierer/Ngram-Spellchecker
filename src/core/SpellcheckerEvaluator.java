@@ -1,6 +1,11 @@
+package core;
+
+import constants.Constants;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
+import model.Prediction;
+import util.SpellCheckerUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,7 +38,7 @@ public class SpellcheckerEvaluator {
             System.out.println(Constants.ANSI_YELLOW + "----------------------------------------------------------------------" + Constants.ANSI_RESET);
 
             Texture<Script> words = new Texture<>(new Script(incorrect.toLowerCase()).split(" "));
-            Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60, directMode);
+            Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, directMode);
             Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
             String correctedSentence = String.join(" ", correctedWords.map(Script::toString).toList());

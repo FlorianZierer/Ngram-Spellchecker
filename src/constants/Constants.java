@@ -1,3 +1,5 @@
+package constants;
+
 public class Constants {
     // ANSI color codes
     public static final String ANSI_RESET = "\u001B[0m";

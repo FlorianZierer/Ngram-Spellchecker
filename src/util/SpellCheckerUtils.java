@@ -1,5 +1,9 @@
+package util;
+
 import lingologs.Script;
 import lingologs.Texture;
+import model.Prediction;
+import model.Suggestion;
 
 public class SpellCheckerUtils {
     public static void printWordInfo(Script originalWord, Prediction prediction) {
