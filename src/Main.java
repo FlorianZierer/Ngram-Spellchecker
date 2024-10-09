@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutionException;
 
 public class Main {
 
-	public static void consoleListener(SpellChecker spellChecker) throws IOException, ExecutionException, InterruptedException {
+	public static void consoleListener(SpellChecker spellChecker,boolean directmode) throws IOException, ExecutionException, InterruptedException {
 		Scanner scanner = new Scanner(System.in);
 		System.out.println("Geben Sie Wörter ein, um sie zu prüfen (oder 'exit' zum Beenden):");
 
@@ -20,35 +20,23 @@ public class Main {
 			}
 			Texture<Script> words = new Texture<>(new Script(input.toLowerCase()).split(" "));
 
-			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60);
+			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60,directmode);
 			Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
 			for (int i = 0; i < words.extent(); i++) {
 				Script originalWord = words.at(i);
 				Prediction prediction = predictions.at(i);
 
-				System.out.println("\nWort: " + originalWord);
-				System.out.println("Korrigiert zu: " + prediction.getPrediction());
+				SpellCheckerUtils.printWordInfo(originalWord, prediction);
 
-				printSuggestions("TriGram", prediction.getSuggestionsTriGram());
-				printSuggestions("BiGram", prediction.getSuggestionsBiGram());
-				printSuggestions("Direct", prediction.getSuggestionsDirect());
+				SpellCheckerUtils.printSuggestions("TriGram", prediction.getSuggestionsTriGram(),directmode);
+				SpellCheckerUtils.printSuggestions("BiGram", prediction.getSuggestionsBiGram(),directmode);
+				SpellCheckerUtils.printSuggestions("Direct", prediction.getSuggestionsDirect(),directmode);
 			}
 
-			System.out.println("Eingegebene Wörter: " + words);
-			System.out.println("Korrigierte Wörter: " + correctedWords);
+			SpellCheckerUtils.printInputAndCorrectedWords(words, correctedWords);
 		}
 		scanner.close();
-	}
-
-	private static void printSuggestions(String category, Texture<Suggestion> suggestions) {
-		System.out.println("Vorschläge (" + category + "):");
-		int count = 0;
-		for (Suggestion suggestion : suggestions) {
-			if (count >= 5) break;
-			System.out.println("  - " + suggestion.getScript() + " (Distanz: " + suggestion.getDistance() + ", Frequenz: " + suggestion.getRepetitionCount() + ")");
-			count++;
-		}
 	}
 
 
@@ -56,7 +44,7 @@ public class Main {
 	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
 		Path path = Path.of("./Transcripts/");
 
-		double percent = 1; // Bei höheren Prozentzahlen läuft mein Computer out of Memory
+		double percent = 1;
 		int nGramLength = 3;
 		int mircothreads = 10;
 		int epochs = 10;
@@ -65,9 +53,9 @@ public class Main {
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold);
 		spellChecker.setCorpora(path, percent, nGramLength, mircothreads, epochs);
 
-		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
-		//evaluator.evaluate(false);
+		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
+		evaluator.evaluate(false);
 
-		consoleListener(spellChecker);
+		consoleListener(spellChecker,false);
 	}
 }

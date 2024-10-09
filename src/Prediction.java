@@ -8,23 +8,33 @@ import java.util.Objects;
 
 public class Prediction {
     private Script word;
-
     private Texture<Suggestion> suggestionsTriGram;
     private Texture<Suggestion> suggestionsBiGram;
     private Texture<Suggestion> suggestionsDirect;
-
     private static final double IGNORE_THRESHOLD = 0.90;
     private static final double PERFECT_SCORE = 1.0;
+    private boolean directModeEnabled;
 
-    public Prediction(Script word) {
+    public Prediction(Script word, boolean directModeEnabled) {
         this.word = word;
         this.suggestionsTriGram = new Texture<>();
         this.suggestionsBiGram = new Texture<>();
         this.suggestionsDirect = new Texture<>();
+        this.directModeEnabled = directModeEnabled;
     }
 
-
     public Script getPrediction() {
+        if (directModeEnabled) {
+            if (suggestionsDirect != null && !suggestionsDirect.isEmpty()) {
+                Suggestion directSuggestion = suggestionsDirect.at(0);
+                if (directSuggestion.getDistance() >= IGNORE_THRESHOLD) {
+                    return directSuggestion.getScript();
+                }
+            }
+            return word;
+        }
+
+        // Existing logic for non-direct mode
         if (suggestionsTriGram != null && !suggestionsTriGram.isEmpty()) {
             Suggestion triGramSuggestion = suggestionsTriGram.at(0);
             if (triGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
@@ -46,7 +56,6 @@ public class Prediction {
             }
         }
 
-        // If no suggestion meets the criteria, return the original word
         return word;
     }
 
@@ -171,5 +180,13 @@ public class Prediction {
 
     public void setWord(Script word) {
         this.word = word;
+    }
+
+    public boolean isDirectModeEnabled() {
+        return directModeEnabled;
+    }
+
+    public void setDirectModeEnabled(boolean directModeEnabled) {
+        this.directModeEnabled = directModeEnabled;
     }
 }

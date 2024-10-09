@@ -120,7 +120,7 @@ public class SpellChecker {
         }
     }
 
-    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams, double acceptanceThreshold) throws IOException, ExecutionException, InterruptedException {
+    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams, double acceptanceThreshold, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> allPredictions = new Texture.Builder<>();
 
         for (Path jsonFolder : jsonFolders) {
@@ -132,7 +132,7 @@ public class SpellChecker {
                 int totalNgrams = countTotalNgrams(jsonFile);
                 int ngramsPerThread = totalNgrams / threads;
 
-                Texture<Prediction> predictions = new Texture<>(searchForWords.map(Prediction::new).toList());
+                Texture<Prediction> predictions = new Texture<>(searchForWords.map(word -> new Prediction(word, directModeEnabled)).toList());
                 Texture<Prediction> filePredictions = getMultiThreadingMatches(jsonFile, predictions, threads, ngramsPerThread, ngrams, acceptanceThreshold, totalNgrams);
                 allPredictions.attach(filePredictions);
             }
