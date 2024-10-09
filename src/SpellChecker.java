@@ -130,8 +130,8 @@ public class SpellChecker {
                     .filter(path -> !path.getFileName().toString().startsWith("._"))
                     .toList();
             for (Path jsonFile : jsonFilePaths) {
+                System.out.println("Searching json file: " + jsonFile.getFileName().toString());
                 int totalNgrams = countTotalNgrams(jsonFile);
-                System.out.println(totalNgrams);
                 int ngramsPerThread = totalNgrams / threads;
 
                 Texture<Prediction> predictions = new Texture<>(searchForWords.map(Prediction::new).toList());
@@ -227,23 +227,16 @@ public class SpellChecker {
 
     public Texture<Prediction> condenseList(Texture<Prediction> predictions) {
 
-        // Liste für bereits verarbeitete Vorhersagen-Wörter
         List<Script> predictionsNames = new ArrayList<>();
-
-        // Liste für kondensierte Vorhersagen
         List<Prediction> condenseList = new ArrayList<>();
 
-        // Durchlaufe die Liste der Vorhersagen
         for (Prediction prediction : predictions) {
-            // Wenn das Wort noch nicht in der Liste ist, füge es hinzu
             if (!(predictionsNames.contains(prediction.getWord()))) {
                 condenseList.add(prediction);
                 predictionsNames.add(prediction.getWord());
             } else {
-                // Finde die existierende Vorhersage mit dem gleichen Wort
                 for (Prediction existingPrediction : condenseList) {
                     if (existingPrediction.getWord().equals(prediction.getWord())) {
-                        // Verwende die vorhandene mergeSuggestions Methode
                         existingPrediction.setSuggestionsTriGram(
                                 mergeSuggestions(existingPrediction.getSuggestionsTriGram(), prediction.getSuggestionsTriGram()));
                         existingPrediction.setSuggestionsBiGram(
@@ -255,8 +248,6 @@ public class SpellChecker {
                 }
             }
         }
-
-        // Rückgabe der kondensierten Liste als neue Texture
         return new Texture<>(condenseList);
     }
 
@@ -283,7 +274,6 @@ public class SpellChecker {
                 }
             }
         }
-
         return new Texture<>(mergedList);
     }
 
@@ -298,19 +288,4 @@ public class SpellChecker {
         }
     }
 
-    // Aktualisiert die Vorschläge und deren Wiederholungszähler
-    private void updateSuggestion(Map<String, Suggestion> suggestions, String scriptString, double score, Script script) {
-        if (suggestions.containsKey(scriptString)) {
-            suggestions.get(scriptString).incrementRepetitionCount();
-        } else {
-            suggestions.put(scriptString, new Suggestion(score, script));
-        }
-    }
-
-    // Gibt Informationen zu den Vorschlägen aus
-    private void printInfo(Map<String, Suggestion> suggestions, String category) {
-        System.out.println(category + " Vorschläge:");
-        suggestions.forEach((script, suggestion) ->
-                System.out.println(script + " Punktzahl: " + ", Wiederholungen: "));
-    }
 }

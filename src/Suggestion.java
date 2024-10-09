@@ -15,12 +15,16 @@ class Suggestion {
         this.script = script;
     }
 
-    public void merge(Suggestion s){
-        if(s.script.equals(script)){
-            System.out.println("Merging " + this.script + ": " + this.repetitionCount + " + " + s.repetitionCount);
-            this.repetitionCount = s.repetitionCount + repetitionCount;
+    public void merge(Suggestion s) {
+        if (s.script.equals(script)) {
+            int oldCount = this.repetitionCount;
+
+            if (this.repetitionCount == s.repetitionCount) {
+                this.repetitionCount += 1;
+            } else {
+                this.repetitionCount += s.repetitionCount;
+            }
             this.distance = Math.max(s.distance, distance);
-            System.out.println("Result: " + this.repetitionCount);
         }
     }
 

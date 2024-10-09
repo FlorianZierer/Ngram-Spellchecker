@@ -155,6 +155,6 @@ class LoadNgramCallable implements Callable<Texture<Prediction>> {
         if (word1.toString().isEmpty() || word2.toString().isEmpty()) {
             return -1.0;
         }
-        return word1.similares(word2, Legacy.Similitude.Levenshtein);
+        return word1.similares(word2, Legacy.Similitude.Cosine);
     }
 }

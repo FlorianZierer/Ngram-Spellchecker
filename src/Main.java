@@ -23,9 +23,6 @@ public class Main {
 			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, 0.60);
 			Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
-			System.out.println("Eingegebene Wörter: " + words);
-			System.out.println("Korrigierte Wörter: " + correctedWords);
-
 			for (int i = 0; i < words.extent(); i++) {
 				Script originalWord = words.at(i);
 				Prediction prediction = predictions.at(i);
@@ -37,6 +34,9 @@ public class Main {
 				printSuggestions("BiGram", prediction.getSuggestionsBiGram());
 				printSuggestions("Direct", prediction.getSuggestionsDirect());
 			}
+
+			System.out.println("Eingegebene Wörter: " + words);
+			System.out.println("Korrigierte Wörter: " + correctedWords);
 		}
 		scanner.close();
 	}
