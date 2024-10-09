@@ -68,17 +68,17 @@ public class Main {
 
 		// Parameter für den SpellChecker festlegen
 		double percent = 1;
-		int mircothreads = 10;
-		int epochs = 10; // nur relevant beim Erstellen. Beim Auslesen wird immer in der gleichen Epochengröße ausgelesen, in der die Files erstellt wurden
+		int mircothreads = 20;  // nur relevant beim Erstellen. Beim Auslesen wird immer die gleiche Anzahl an Threads erstellt, wie viele Files erstellt wurden
+		int epochs = 10;
 		Double acceptanceThreshold = 0.65;
 
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold,mircothreads);
 		spellChecker.setCorpora(path, percent, epochs);
 
 		//SpellChecker evaluieren
-		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
-		evaluator.evaluate(false);
+		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
+		//evaluator.evaluate(false);
 
-		//consoleListener(spellChecker,false);
+		consoleListener(spellChecker,false);
 	}
 }

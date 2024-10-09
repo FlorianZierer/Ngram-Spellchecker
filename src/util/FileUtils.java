@@ -5,24 +5,25 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-// Klasse für Dateioperationen
 public class FileUtils {
-    // Methode zum Abrufen von JSON-Ordnern in einem Verzeichnis
+    private static final Pattern SENTENCE_END_PATTERN = Pattern.compile(",\"\"]");
+    private static final Pattern NGRAM_PATTERN = Pattern.compile("\\[\"([^\"]*)\",\"([^\"]*)\",\"([^\"]*)\"\\]");
+
     public static List<Path> getJsonFolders(Path directoryPath) throws IOException {
         return Files.list(directoryPath)
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
     }
 
-    // Methode zum Abrufen von JSON-Dateien in einem Ordner
     public static List<Path> getJsonFiles(Path jsonFolder) throws IOException {
         return Files.list(jsonFolder)
                 .filter(path -> !path.getFileName().toString().startsWith("._"))
                 .toList();
     }
 
-    // Methode zum Abrufen von TXT-Dateien in einem Verzeichnis
     public static List<Path> getTxtFiles(Path directoryPath) throws IOException {
         return Files.list(directoryPath)
                 .filter(Files::isRegularFile)
@@ -31,57 +32,43 @@ public class FileUtils {
                 .toList();
     }
 
-    // Methode zum Erstellen eines Verzeichnisses, falls es nicht existiert
     public static void createDirectoryIfNotExists(Path directoryPath) throws IOException {
         if (!Files.exists(directoryPath)) {
             try {
                 Files.createDirectories(directoryPath);
             } catch (IOException e) {
-                System.err.println("Verzeichnis konnte nicht erstellt werden: " + e.getMessage());
+                System.err.println("Directory could not be created: " + e.getMessage());
                 throw e;
             }
         }
     }
 
-    // Methode zum Zählen der Gesamtanzahl von N-Grammen in einer JSON-Datei
-    // Diese Methode ist speichereffizient und verarbeitet die Datei zeichenweise
-    public static int countTotalNgrams(Path jsonFilePath) throws IOException {
-        int totalNgrams = 0;
+    public static int countSentences(Path jsonFilePath) throws IOException {
+        int sentenceCount = 0;
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            int nestingLevel = 0;
-            boolean inString = false;
-            boolean escape = false;
-            int c;
-
-            // Lese die Datei zeichenweise
-            while ((c = reader.read()) != -1) {
-                char ch = (char) c;
-
-                // Verarbeite Zeichen innerhalb von Strings
-                if (inString) {
-                    if (escape) {
-                        escape = false;
-                    } else if (ch == '\\') {
-                        escape = true;
-                    } else if (ch == '"') {
-                        inString = false;
-                    }
-                } else {
-                    // Verarbeite Zeichen außerhalb von Strings
-                    if (ch == '"') {
-                        inString = true;
-                    } else if (ch == '[') {
-                        nestingLevel++;
-                        // Zähle N-Gramme auf der zweiten Verschachtelungsebene
-                        if (nestingLevel == 2) {
-                            totalNgrams++;
-                        }
-                    } else if (ch == ']') {
-                        nestingLevel--;
-                    }
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Matcher matcher = SENTENCE_END_PATTERN.matcher(line);
+                while (matcher.find()) {
+                    sentenceCount++;
                 }
             }
         }
-        return totalNgrams;
+        return sentenceCount;
+    }
+
+    public static String processBatch(String batchContent, boolean isFirstBatch, boolean isLastBatch) {
+        if (!isFirstBatch) {
+            batchContent = batchContent.replaceFirst("^,", "[");
+        }
+        if (!isLastBatch) {
+            batchContent = batchContent.replaceFirst(",$", "]");
+        }
+        return batchContent;
+    }
+
+    public static int calculateBatchSize(Path jsonFilePath, int epochs) throws IOException {
+        int totalSentences = countSentences(jsonFilePath);
+        return (int) Math.ceil((double) totalSentences / epochs);
     }
 }

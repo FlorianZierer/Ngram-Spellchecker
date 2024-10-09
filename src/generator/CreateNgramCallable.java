@@ -104,38 +104,33 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         }
     }
 
-    // Fügt Padding zu den Wörtern hinzu
-    private Texture<Script> addPadding(Texture<Script> wordsToSearch){
-        Texture.Builder<Script> paddedWords = new Texture.Builder<>();
-        paddedWords.attach(Script.of("")); // Füge null am Anfang hinzu
-        paddedWords.attach(wordsToSearch);
-        paddedWords.attach(Script.of("")); // Füge null am Ende hinzu
-        return paddedWords.toTexture();
-    }
-
-    // Erstellt N-Gramme aus den gelesenen Wörtern
     private Texture<Texture<Script>> createNgrams() throws IOException {
-        Texture<Script> words = readAndFilterTxt();
-        Texture<Script> paddedWords = addPadding(words);
-        return new Texture<>(paddedWords.grammy(nGramLength));
+        List<Texture<Script>> sentences = readAndFilterTxt();
+        Texture.Builder<Texture<Script>> ngramsBuilder = new Texture.Builder<>();
+
+        for (Texture<Script> sentence : sentences) {
+            Texture<Script> paddedSentence = addPadding(sentence);
+            ngramsBuilder.attach(new Texture<>(paddedSentence.grammy(nGramLength)));
+        }
+
+        return ngramsBuilder.toTexture();
     }
 
-    // Liest und filtert den Text aus der Datei
-    private Texture<Script> readAndFilterTxt() throws IOException {
+    private List<Texture<Script>> readAndFilterTxt() throws IOException {
         Pattern toDelete = Pattern.compile("\\d+\\t|(https?:)?\\w+\\.\\w{2,3}|\\s+-\\s+|[^a-z'&\\- ]");
-        Texture.Builder<Script> builder = new Texture.Builder<>();
+        List<Texture<Script>> sentences = new ArrayList<>();
+        Texture.Builder<Script> sentenceBuilder = new Texture.Builder<>();
 
         try (BufferedReader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
             String line;
             int currentLine = 0;
-            List<String> buffer = new ArrayList<>();
 
-            // Überspringe bis zur Startzeile
+            // Skip to the start line
             while (currentLine < start && reader.readLine() != null) {
                 currentLine++;
             }
 
-            // Lese Zeilen von Start bis Ende
+            // Read lines from start to end
             while ((line = reader.readLine()) != null && currentLine < end) {
                 currentLine++;
                 if (!line.isEmpty()) {
@@ -143,27 +138,35 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
                     String[] splitWords = processedLine.split("\\s+");
                     for (String word : splitWords) {
                         if (!word.isEmpty()) {
-                            buffer.add(word);
+                            sentenceBuilder.attach(new Script(word));
                         }
                     }
 
-                    // Verarbeite Buffer, wenn BUFFER_SIZE erreicht ist
-                    if (buffer.size() >= BUFFER_SIZE) {
-                        processBuffer(buffer, builder);
-                        buffer.clear();
+                    // Each line is considered a sentence, so we add it to the list and start a new one
+                    if (!sentenceBuilder.isEmpty()) {
+                        sentences.add(sentenceBuilder.toTexture());
+                        sentenceBuilder = new Texture.Builder<>();
                     }
                 }
             }
 
-            // Verarbeite verbleibende Wörter im Buffer
-            if (!buffer.isEmpty()) {
-                processBuffer(buffer, builder);
+            // Add the last sentence if it's not empty
+            if (!sentenceBuilder.isEmpty()) {
+                sentences.add(sentenceBuilder.toTexture());
             }
         } catch (IOException e) {
-            System.err.println(Constants.ANSI_RED + "Fehler beim Lesen und Filtern des Textes" + Constants.ANSI_RESET);
+            System.err.println(Constants.ANSI_RED + "Error reading and filtering text" + Constants.ANSI_RESET);
             throw new RuntimeException(e);
         }
-        return builder.toTexture();
+        return sentences;
+    }
+
+    private Texture<Script> addPadding(Texture<Script> sentence) {
+        Texture.Builder<Script> paddedSentence = new Texture.Builder<>();
+        paddedSentence.attach(Script.of(""));
+        paddedSentence.attach(sentence);
+        paddedSentence.attach(Script.of(""));
+        return paddedSentence.toTexture();
     }
 
     // Verarbeitet den Buffer und fügt die Wörter zum Builder hinzu

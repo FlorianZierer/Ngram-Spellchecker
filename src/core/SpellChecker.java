@@ -19,19 +19,19 @@ public class SpellChecker {
     private final int nGramLength = 3; // fixed weil Predictions nur mit 3 Funktionieren. Generierung hätte damit kein Problem.
     private final double acceptanceThreshold;
     private List<Path> jsonFolders;
-    private int threads;
+    private int createThreads;
 
     // Konstruktor, der den Akzeptanzschwellenwert für Vorhersagen setzt
     public SpellChecker(double acceptanceThreshold, int threads) {
         this.acceptanceThreshold = acceptanceThreshold;
-        this.threads = threads;
+        this.createThreads = threads;
     }
 
     // Methode zum Setzen und Generieren der Korpora für die Rechtschreibprüfung
     public void setCorpora(Path directoryPath, double percent, int epochs) {
         try {
             // Generiert N-Gramme aus den Trainingsdaten
-            NgramGenerator.generateNgrams(directoryPath, nGramLength, threads, percent, epochs);
+            NgramGenerator.generateNgrams(directoryPath, nGramLength, createThreads, percent, epochs);
             // Speichert die Pfade zu den generierten JSON-Dateien
             this.jsonFolders = FileUtils.getJsonFolders(directoryPath.resolve("Json"));
         } catch (IOException | ExecutionException | InterruptedException e) {
@@ -45,14 +45,13 @@ public class SpellChecker {
 
         // Durchsucht alle JSON-Dateien nach Vorhersagen
         for (Path jsonFolder : jsonFolders) {
+            int threads = FileUtils.getJsonFiles(jsonFolder).size();
             List<Path> jsonFilePaths = FileUtils.getJsonFiles(jsonFolder);
-            for (Path jsonFile : jsonFilePaths) {
                 //System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
 
                 // Generiert Vorhersagen für die aktuelle JSON-Datei
-                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFile, searchForWords, threads, nGramLength, acceptanceThreshold, directModeEnabled);
+                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFilePaths, searchForWords, threads, nGramLength, acceptanceThreshold, directModeEnabled);
                 allPredictions.attach(filePredictions);
-            }
         }
 
         // Entfernt Duplikate und sortiert die Vorhersagen

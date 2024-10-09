@@ -1,5 +1,6 @@
 package generator;
 
+import lingolava.Tuple.Couple;
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
@@ -16,27 +17,41 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class PredictionGenerator {
-    // Hauptmethode zur Generierung von Vorhersagen
-    public static Texture<Prediction> generatePredictions(Path jsonFile, Texture<Script> searchForWords, int threads, int ngrams, double acceptanceThreshold, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
+    public static Texture<Prediction> generatePredictions(List<Path> jsonFiles, Texture<Script> searchForWords,int epochs, int nGramLength, double acceptanceThreshold, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
 
         // Hinzufügen von Polsterung zu den Suchwörtern
         Texture<Script> paddedWords = addPadding(searchForWords);
-
         // Erstellen initialer Vorhersagen
         Texture<Prediction> predictions = new Texture<>(searchForWords.map(word -> new Prediction(word, directModeEnabled)).toList());
 
-        // Berechnung der N-Gramme pro Thread
-        int totalNgrams = FileUtils.countTotalNgrams(jsonFile);
-        int ngramsPerThread = totalNgrams / threads;
-
-        // Erstellen von Callable-Objekten für jeden Thread
-        List<LoadNgramCallable> ngramCallables = new ArrayList<>();
-        for (int threadID = 0; threadID < threads; threadID++) {
-            int startNgramIndex = ngramsPerThread * threadID;
-            int endNgramIndex = (threadID == threads - 1) ? totalNgrams : startNgramIndex + ngramsPerThread;
-            ngramCallables.add(new LoadNgramCallable(jsonFile, predictions, paddedWords, ngrams, acceptanceThreshold, startNgramIndex, endNgramIndex));
+        int threads = jsonFiles.size();
+        List<Integer> ngramsPerThreads = new ArrayList<>();
+        for (Path jsonFile : jsonFiles) {
+            int totalSentences = FileUtils.countSentences(jsonFile);
+            int ngramsPerThread = totalSentences / threads;
+            ngramsPerThreads.add(ngramsPerThread);
         }
+
+        for(int epoch = 0; epoch < epochs; epoch++) {
+            predictionBuilder.attach(predictEpochMultiThreaded(jsonFiles, ngramsPerThreads, predictions, paddedWords ,threads, nGramLength, acceptanceThreshold,epoch));
+        }
+        return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
+    }
+
+    // Hauptmethode zur Generierung von Vorhersagen
+    public static Texture<Prediction> predictEpochMultiThreaded(List<Path> jsonFiles, List<Integer> ngramsPerThreads, Texture<Prediction> predictions, Texture<Script> paddedWords ,int threads, int ngrams, double acceptanceThreshold,int epoch) throws IOException, ExecutionException, InterruptedException {
+        Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
+
+        List<LoadNgramCallable> ngramCallables = new ArrayList<>();
+        int thread = 0;
+        for (Path jsonFile : jsonFiles) {
+            int startNgramIndex = epoch * ngramsPerThreads.get(thread);
+            int endNgramIndex = startNgramIndex + ngramsPerThreads.get(thread);
+            ngramCallables.add(new LoadNgramCallable(jsonFile, predictions, paddedWords,thread, ngrams, acceptanceThreshold, startNgramIndex, endNgramIndex));
+            thread++;
+        }
+
 
         // Ausführen der Threads und Sammeln der Ergebnisse
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
@@ -55,7 +70,7 @@ public class PredictionGenerator {
         executorService.shutdown();
 
         // Entfernen von Duplikaten und Sortieren der Vorhersagen
-        return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
+        return predictionBuilder.toTexture();
     }
 
     // Methode zum Hinzufügen von Polsterung zu den Suchwörtern
