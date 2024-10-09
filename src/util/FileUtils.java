@@ -5,10 +5,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 public class FileUtils {
 
@@ -43,61 +41,18 @@ public class FileUtils {
         }
     }
 
-    public static String processBatch(String batchContent, boolean isFirstBatch, boolean isLastBatch) {
-        if (!isFirstBatch) {
-            batchContent = batchContent.replaceFirst("^,", "[");
-        }
-        if (!isLastBatch) {
-            batchContent = batchContent.replaceFirst(",$", "]");
-        }
-        return batchContent;
-    }
-
-    public static int calculateBatchSize(Path jsonFilePath, int epochs) throws IOException {
-        int totalSentences = countSentences(String.valueOf(jsonFilePath));
-        return (int) Math.ceil((double) totalSentences / epochs);
-    }
-
     public static int countSentences(String filePath) throws IOException {
         int sentenceCount = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
-            int lineCount = 0;
             while ((line = reader.readLine()) != null) {
-                lineCount++;
-                int sentencesInLine = countOccurrences(line, ",\"\"]");
-                sentenceCount += sentencesInLine;
-                if (lineCount <= 5 || sentencesInLine > 0) {
-                    System.out.println("Line " + lineCount + ": " + sentencesInLine + " sentences, Content: " + line.substring(0, Math.min(50, line.length())) + "...");
+                sentenceCount++;
+                if (sentenceCount <= 5) {
+                    System.out.println("Line " + sentenceCount + ": Content: " + line.substring(0, Math.min(50, line.length())) + "...");
                 }
             }
-            System.out.println("Total lines in file: " + lineCount);
-            System.out.println("Total sentences counted: " + sentenceCount);
+            System.out.println("Total lines/sentences in file: " + sentenceCount);
         }
         return sentenceCount;
-    }
-
-    private static int countOccurrences(String str, String subStr) {
-        int count = 0;
-        int lastIndex = 0;
-        while (lastIndex != -1) {
-            lastIndex = str.indexOf(subStr, lastIndex);
-            if (lastIndex != -1) {
-                count++;
-                lastIndex += subStr.length();
-            }
-        }
-        return count;
-    }
-
-    public static List<String> readBatch(BufferedReader reader, int batchSize) throws IOException {
-        List<String> batch = new ArrayList<>();
-        String line;
-        int count = 0;
-        while ((line = reader.readLine()) != null && count < batchSize) {
-            batch.add(line);
-            count++;
-        }
-        return batch;
     }
 }
