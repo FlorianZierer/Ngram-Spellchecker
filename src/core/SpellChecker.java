@@ -47,7 +47,7 @@ public class SpellChecker {
         for (Path jsonFolder : jsonFolders) {
             List<Path> jsonFilePaths = FileUtils.getJsonFiles(jsonFolder);
             for (Path jsonFile : jsonFilePaths) {
-                System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
+                //System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
 
                 // Generiert Vorhersagen für die aktuelle JSON-Datei
                 Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFile, searchForWords, threads, nGramLength, acceptanceThreshold, directModeEnabled);

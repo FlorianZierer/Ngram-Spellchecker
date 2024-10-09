@@ -76,9 +76,9 @@ public class Main {
 		spellChecker.setCorpora(path, percent, epochs);
 
 		//SpellChecker evaluieren
-		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
-		//evaluator.evaluate(false);
+		SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);
+		evaluator.evaluate(false);
 
-		consoleListener(spellChecker,false);
+		//consoleListener(spellChecker,false);
 	}
 }

@@ -6,6 +6,7 @@ import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
 import model.Suggestion;
+import util.PredictionUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -185,7 +186,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         boolean[] distanceValid = new boolean[3];
 
         for (int i = 0; i < 3; i++) {
-            distances[i] = distance(input.at(i), data.at(i));
+            distances[i] = PredictionUtils.distance(input.at(i), data.at(i));
             distanceValid[i] = distances[i] >= acceptanceThreshold;
         }
 
@@ -194,16 +195,8 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
             prediction.addSuggestionTriGram(new Suggestion(distances[1], data.at(1)));
         } else if ((distanceValid[0] || distanceValid[2]) && distanceValid[1]) {
             prediction.addSuggestionBiGram(new Suggestion(distances[1], data.at(1)));
-        } else if (distanceValid[1] && !distanceValid[0] && !distanceValid[2]) {
+        } else if (distanceValid[1]) {
             prediction.addSuggestionDirect(new Suggestion(distances[1], data.at(1)));
         }
-    }
-
-    // Berechnet die Distanz zwischen zwei Wörtern
-    private static Double distance(Script word1, Script word2) {
-        if (word1.toString().isEmpty() || word2.toString().isEmpty()) {
-            return -1.0;
-        }
-        return word1.similares(word2, Legacy.Similitude.Cosine);
     }
 }
