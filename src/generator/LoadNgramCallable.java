@@ -43,32 +43,15 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         return new Texture<>(mutablePredictions);
     }
 
-    // Lädt existierende N-Gramme aus der JSON-Datei
-    private void loadExistingNgrams() throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            skipWhitespaceAndOpenBracket(reader);
-            processNgrams(reader);
-        }
-    }
-
-    // Überspringt Leerzeichen und die öffnende eckige Klammer
-    private void skipWhitespaceAndOpenBracket(BufferedReader reader) throws IOException {
-        int c;
-        while ((c = reader.read()) != -1 && Character.isWhitespace(c)) {
-            // Überspringe Leerzeichen
-        }
-        if (c != '[') {
-            throw new IOException("Expected '[' at the beginning of the JSON array");
-        }
-    }
-
-    // Verarbeitet die N-Gramme aus der JSON-Datei
+    // Verarbeitet N-Gramme innerhalb des zugewiesenen Bereichs
     private void processNgrams(BufferedReader reader) throws IOException {
         int ngramIndex = 0;
         while (ngramIndex < endNgramIndex) {
             if (skipToNextNgram(reader)) {
                 if (ngramIndex >= startNgramIndex) {
                     processNgram(reader);
+                } else {
+                    skipNgram(reader);
                 }
                 ngramIndex++;
             } else {
@@ -77,20 +60,9 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         }
     }
 
-    // Springt zum nächsten N-Gramm in der JSON-Datei
-    private boolean skipToNextNgram(BufferedReader reader) throws IOException {
-        int c;
-        while ((c = reader.read()) != -1) {
-            if (c == '[') {
-                return true;
-            } else if (c == ']') {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    // Verarbeitet ein einzelnes N-Gramm aus der JSON-Datei
+    // Verarbeitet ein einzelnes N-Gramm
+    // Diese Methode ist speichereffizient, da sie das N-Gramm zeichenweise liest und verarbeitet,
+    // ohne den gesamten JSON-Inhalt im Speicher zu halten
     private void processNgram(BufferedReader reader) throws IOException {
         StringBuilder ngramBuilder = new StringBuilder("[");
         int nestingLevel = 1;
@@ -127,6 +99,73 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramBuilder.toString());
         Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
         filterForSuggestions(ngram);
+    }
+
+    // Überspringt ein N-Gramm ohne es zu verarbeiten
+    // Diese Methode ist ebenfalls speichereffizient, da sie das N-Gramm zeichenweise überspringt,
+    // ohne es im Speicher zu halten
+    private void skipNgram(BufferedReader reader) throws IOException {
+        int nestingLevel = 1;
+        boolean inString = false;
+        boolean escape = false;
+
+        while (nestingLevel > 0) {
+            int c = reader.read();
+            if (c == -1) {
+                throw new IOException("Unexpected end of file");
+            }
+            char ch = (char) c;
+
+            if (inString) {
+                if (escape) {
+                    escape = false;
+                } else if (ch == '\\') {
+                    escape = true;
+                } else if (ch == '"') {
+                    inString = false;
+                }
+            } else {
+                if (ch == '"') {
+                    inString = true;
+                } else if (ch == '[') {
+                    nestingLevel++;
+                } else if (ch == ']') {
+                    nestingLevel--;
+                }
+            }
+        }
+    }
+
+    // Lädt existierende N-Gramme aus der JSON-Datei
+    private void loadExistingNgrams() throws IOException {
+        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
+            skipWhitespaceAndOpenBracket(reader);
+            processNgrams(reader);
+        }
+    }
+
+    // Überspringt Leerzeichen und die öffnende eckige Klammer
+    private void skipWhitespaceAndOpenBracket(BufferedReader reader) throws IOException {
+        int c;
+        while ((c = reader.read()) != -1 && Character.isWhitespace(c)) {
+            // Überspringe Leerzeichen
+        }
+        if (c != '[') {
+            throw new IOException("Expected '[' at the beginning of the JSON array");
+        }
+    }
+
+    // Springt zum nächsten N-Gramm in der JSON-Datei
+    private boolean skipToNextNgram(BufferedReader reader) throws IOException {
+        int c;
+        while ((c = reader.read()) != -1) {
+            if (c == '[') {
+                return true;
+            } else if (c == ']') {
+                return false;
+            }
+        }
+        return false;
     }
 
     // Filtert N-Gramme für Vorschläge

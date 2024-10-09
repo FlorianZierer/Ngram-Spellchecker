@@ -68,8 +68,8 @@ public class Main {
 
 		// Parameter für den SpellChecker festlegen
 		double percent = 1;
-		int mircothreads = 1000;
-		int epochs = 4;
+		int mircothreads = 10;
+		int epochs = 10; // nur relevant beim Erstellen. Beim Auslesen wird immer in der gleichen Epochengröße ausgelesen, in der die Files erstellt wurden
 		Double acceptanceThreshold = 0.65;
 
 		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold,mircothreads);

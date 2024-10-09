@@ -1,4 +1,5 @@
-package util;// util.FileUtils.java
+package util;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,18 +44,20 @@ public class FileUtils {
     }
 
     // Methode zum Zählen der Gesamtanzahl von N-Grammen in einer JSON-Datei
+    // Diese Methode ist speichereffizient und verarbeitet die Datei zeichenweise
     public static int countTotalNgrams(Path jsonFilePath) throws IOException {
         int totalNgrams = 0;
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            int c;
             int nestingLevel = 0;
             boolean inString = false;
             boolean escape = false;
+            int c;
 
+            // Lese die Datei zeichenweise
             while ((c = reader.read()) != -1) {
                 char ch = (char) c;
 
-                // Behandlung von Zeichenketten
+                // Verarbeite Zeichen innerhalb von Strings
                 if (inString) {
                     if (escape) {
                         escape = false;
@@ -63,23 +66,19 @@ public class FileUtils {
                     } else if (ch == '"') {
                         inString = false;
                     }
-                    continue;
                 } else {
+                    // Verarbeite Zeichen außerhalb von Strings
                     if (ch == '"') {
                         inString = true;
-                        continue;
+                    } else if (ch == '[') {
+                        nestingLevel++;
+                        // Zähle N-Gramme auf der zweiten Verschachtelungsebene
+                        if (nestingLevel == 2) {
+                            totalNgrams++;
+                        }
+                    } else if (ch == ']') {
+                        nestingLevel--;
                     }
-                }
-
-                // Zählen der N-Gramme basierend auf der Verschachtelungsebene
-                if (ch == '[') {
-                    nestingLevel++;
-                } else if (ch == ']') {
-                    if (nestingLevel == 2) {
-                        // Wir haben gerade ein N-Gram-Array geschlossen
-                        totalNgrams++;
-                    }
-                    nestingLevel--;
                 }
             }
         }
