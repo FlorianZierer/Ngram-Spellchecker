@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+// Klasse zur Handhabung von Vorhersagen basierend auf verschiedenen Suggestion-Typen
 public class Prediction {
     private Script word;
     private Texture<Suggestion> suggestionsTriGram;
@@ -17,6 +18,7 @@ public class Prediction {
     private static final double PERFECT_SCORE = 1.0;
     private boolean directModeEnabled;
 
+    // Konstruktor für die Prediction-Klasse
     public Prediction(Script word, boolean directModeEnabled) {
         this.word = word;
         this.suggestionsTriGram = new Texture<>();
@@ -25,8 +27,10 @@ public class Prediction {
         this.directModeEnabled = directModeEnabled;
     }
 
+    // Methode zur Ermittlung der besten Vorhersage basierend auf den verfügbaren Suggestions
     public Script getPrediction() {
         if (directModeEnabled) {
+            // Logik für den direkten Modus
             if (suggestionsDirect != null && !suggestionsDirect.isEmpty()) {
                 Suggestion directSuggestion = suggestionsDirect.at(0);
                 if (directSuggestion.getDistance() >= IGNORE_THRESHOLD) {
@@ -36,7 +40,7 @@ public class Prediction {
             return word;
         }
 
-        // Existing logic for non-direct mode
+        // Logik für den nicht-direkten Modus
         if (suggestionsTriGram != null && !suggestionsTriGram.isEmpty()) {
             Suggestion triGramSuggestion = suggestionsTriGram.at(0);
             if (triGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
@@ -61,6 +65,7 @@ public class Prediction {
         return word;
     }
 
+    // Methode zum Zusammenführen von zwei Suggestion-Listen
     private Texture<Suggestion> mergeSuggestions(Texture<Suggestion> suggestions1, Texture<Suggestion> suggestions2) {
         List<Suggestion> mergedList = new ArrayList<>();
 
@@ -87,7 +92,7 @@ public class Prediction {
         return new Texture<>(mergedList);
     }
 
-
+    // Methode zum Sortieren der Suggestions basierend auf Distanz und Wiederholungsanzahl
     public void sort() {
         Comparator<Suggestion> suggestionComparator = (s1, s2) -> {
             int distanceCompare = Double.compare(s2.getDistance(), s1.getDistance());
@@ -116,6 +121,8 @@ public class Prediction {
         }
     }
 
+    // Methoden zum Hinzufügen von Suggestions zu den verschiedenen Listen
+
     public void addSuggestionTriGram(Suggestion suggestion) {
         if (suggestionsTriGram == null) {
             suggestionsTriGram = new Texture<>();
@@ -137,6 +144,7 @@ public class Prediction {
         addSuggestion(suggestion, suggestionsDirect, s -> this.suggestionsDirect = s);
     }
 
+    // Hilfsmethode zum Hinzufügen einer Suggestion zu einer Liste
     private void addSuggestion(Suggestion suggestion, Texture<Suggestion> suggestions, java.util.function.Consumer<Texture<Suggestion>> setter) {
         boolean found = false;
         for (Suggestion s : suggestions) {
@@ -151,6 +159,8 @@ public class Prediction {
             setter.accept(suggestions.add(suggestion));
         }
     }
+
+    // Getter- und Setter-Methoden
 
     public Texture<Suggestion> getSuggestionsTriGram() {
         return suggestionsTriGram;

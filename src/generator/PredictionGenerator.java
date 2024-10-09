@@ -1,4 +1,5 @@
-package generator;// generator.PredictionGenerator.java
+package generator;
+
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
@@ -15,14 +16,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class PredictionGenerator {
+    // Hauptmethode zur Generierung von Vorhersagen
     public static Texture<Prediction> generatePredictions(Path jsonFile, Texture<Script> searchForWords, int threads, int ngrams, double acceptanceThreshold, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
+
+        // Hinzufügen von Polsterung zu den Suchwörtern
         Texture<Script> paddedWords = addPadding(searchForWords);
+
+        // Erstellen initialer Vorhersagen
         Texture<Prediction> predictions = new Texture<>(searchForWords.map(word -> new Prediction(word, directModeEnabled)).toList());
 
+        // Berechnung der N-Gramme pro Thread
         int totalNgrams = FileUtils.countTotalNgrams(jsonFile);
         int ngramsPerThread = totalNgrams / threads;
 
+        // Erstellen von Callable-Objekten für jeden Thread
         List<LoadNgramCallable> ngramCallables = new ArrayList<>();
         for (int threadID = 0; threadID < threads; threadID++) {
             int startNgramIndex = ngramsPerThread * threadID;
@@ -30,6 +38,7 @@ public class PredictionGenerator {
             ngramCallables.add(new LoadNgramCallable(jsonFile, predictions, paddedWords, ngrams, acceptanceThreshold, startNgramIndex, endNgramIndex));
         }
 
+        // Ausführen der Threads und Sammeln der Ergebnisse
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         List<Future<Texture<Prediction>>> futures = ngramCallables.stream()
                 .map(executorService::submit)
@@ -44,9 +53,12 @@ public class PredictionGenerator {
         }
 
         executorService.shutdown();
+
+        // Entfernen von Duplikaten und Sortieren der Vorhersagen
         return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
     }
 
+    // Methode zum Hinzufügen von Polsterung zu den Suchwörtern
     private static Texture<Script> addPadding(Texture<Script> wordsToSearch) {
         Texture.Builder<Script> paddedWords = new Texture.Builder<>();
         paddedWords.attach(Script.of(""));

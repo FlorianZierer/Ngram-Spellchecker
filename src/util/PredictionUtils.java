@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+// Klasse für Vorhersage-Operationen
 public class PredictionUtils {
+    // Methode zum Deduplizieren und Sortieren von Vorhersagen
     public static Texture<Prediction> deduplicateAndSortPredictions(Texture<Prediction> predictions) {
         List<Script> predictionsNames = new ArrayList<>();
         List<Prediction> condensedList = new ArrayList<>();
@@ -21,6 +23,7 @@ public class PredictionUtils {
             } else {
                 for (Prediction existingPrediction : condensedList) {
                     if (existingPrediction.getWord().equals(prediction.getWord())) {
+                        // Zusammenführen von Vorschlägen für doppelte Vorhersagen
                         existingPrediction.setSuggestionsTriGram(
                                 mergeSuggestions(existingPrediction.getSuggestionsTriGram(), prediction.getSuggestionsTriGram()));
                         existingPrediction.setSuggestionsBiGram(
@@ -33,10 +36,12 @@ public class PredictionUtils {
             }
         }
 
+        // Sortieren der Vorhersagen
         condensedList.forEach(Prediction::sort);
         return new Texture<>(condensedList);
     }
 
+    // Methode zum Zusammenführen von Vorschlägen
     public static Texture<Suggestion> mergeSuggestions(Texture<Suggestion> suggestions1, Texture<Suggestion> suggestions2) {
         List<Suggestion> mergedList = new ArrayList<>();
 

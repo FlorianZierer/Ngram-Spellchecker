@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+// Diese Klasse implementiert Callable und ist für die Erstellung von N-Grammen verantwortlich
 public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private final Path filePath;
     private final int start;
@@ -28,7 +29,7 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
     private final Path directoryPath;
     private final String filename;
 
-
+    // Konstruktor für die Klasse
     public CreateNgramCallable(Path filePath, int start, int end,
                                int nGramLength, int threadID) {
         this.filePath = filePath;
@@ -38,14 +39,13 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         this.filename = filePath.getFileName().toString().substring(0, filePath.getFileName().toString().lastIndexOf('.'));
         this.directoryPath = filePath.getParent().resolve("Json").resolve(filename);
         this.jsonDirectoryPath = directoryPath.resolve(filename + "_" + threadID + ".json");
-
     }
 
+    // Überschriebene call-Methode, die von Callable gefordert wird
     @Override
     public Texture<Texture<Script>> call() throws Exception {
         createAndSaveNewNgrams();
         return new Texture<>();
-
     }
 
     // Erstellt und speichert neue N-Gramme aus einer Textdatei
@@ -68,6 +68,7 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         appendNewNgrams(fileNGrams);
     }
 
+    // Fügt neue N-Gramme zur JSON-Datei hinzu
     private void appendNewNgrams(Texture<Texture<Script>> newNGrams) throws IOException {
         Nexus.JSONProcessor JP = new Nexus.JSONProcessor();
         List<List<Script>> convertedList = newNGrams
@@ -102,21 +103,24 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
             }
         }
     }
+
+    // Fügt Padding zu den Wörtern hinzu
     private Texture<Script> addPadding(Texture<Script> wordsToSearch){
         Texture.Builder<Script> paddedWords = new Texture.Builder<>();
         paddedWords.attach(Script.of("")); // Füge null am Anfang hinzu
         paddedWords.attach(wordsToSearch);
         paddedWords.attach(Script.of("")); // Füge null am Ende hinzu
         return paddedWords.toTexture();
-
     }
 
+    // Erstellt N-Gramme aus den gelesenen Wörtern
     private Texture<Texture<Script>> createNgrams() throws IOException {
         Texture<Script> words = readAndFilterTxt();
         Texture<Script> paddedWords = addPadding(words);
         return new Texture<>(paddedWords.grammy(nGramLength));
     }
 
+    // Liest und filtert den Text aus der Datei
     private Texture<Script> readAndFilterTxt() throws IOException {
         Pattern toDelete = Pattern.compile("\\d+\\t|(https?:)?\\w+\\.\\w{2,3}|\\s+-\\s+|[^a-z'&\\- ]");
         Texture.Builder<Script> builder = new Texture.Builder<>();
@@ -162,6 +166,7 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         return builder.toTexture();
     }
 
+    // Verarbeitet den Buffer und fügt die Wörter zum Builder hinzu
     private void processBuffer(List<String> buffer, Texture.Builder<Script> builder) {
         for (String word : buffer) {
             builder.attach(new Script(word));

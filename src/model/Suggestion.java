@@ -2,6 +2,7 @@ package model;
 
 import lingologs.Script;
 
+// Klasse zur Repräsentation eines Vorschlags (Suggestion) für eine Vorhersage
 public class Suggestion {
     // Distanz des Vorschlags
     private double distance;
@@ -16,6 +17,7 @@ public class Suggestion {
         this.script = script;
     }
 
+    // Methode zum Zusammenführen von zwei Suggestions
     public void merge(Suggestion s) {
         if (s.script.equals(script)) {
             int oldCount = this.repetitionCount;
@@ -33,6 +35,8 @@ public class Suggestion {
     public void incrementRepetitionCount() {
         this.repetitionCount++;
     }
+
+    // Getter- und Setter-Methoden
 
     public double getDistance() {
         return distance;

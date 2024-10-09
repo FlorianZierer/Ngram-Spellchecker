@@ -1,5 +1,6 @@
 package core;
 
+import constants.Constants;
 import generator.NgramGenerator;
 import generator.PredictionGenerator;
 import lingologs.Script;
@@ -13,35 +14,45 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+// Diese Klasse implementiert einen Rechtschreibprüfer basierend auf N-Gramm-Modellen
 public class SpellChecker {
     private final double acceptanceThreshold;
     private List<Path> jsonFolders;
 
+    // Konstruktor, der den Akzeptanzschwellenwert für Vorhersagen setzt
     public SpellChecker(double acceptanceThreshold) {
         this.acceptanceThreshold = acceptanceThreshold;
     }
 
+    // Methode zum Setzen und Generieren der Korpora für die Rechtschreibprüfung
     public void setCorpora(Path directoryPath, double percent, int nGramLength, int threads, int epochs) {
         try {
+            // Generiert N-Gramme aus den Trainingsdaten
             NgramGenerator.generateNgrams(directoryPath, nGramLength, threads, percent, epochs);
+            // Speichert die Pfade zu den generierten JSON-Dateien
             this.jsonFolders = FileUtils.getJsonFolders(directoryPath.resolve("Json"));
         } catch (IOException | ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
     }
 
+    // Methode zur Generierung von Vorhersagen für gegebene Wörter
     public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> allPredictions = new Texture.Builder<>();
 
+        // Durchsucht alle JSON-Dateien nach Vorhersagen
         for (Path jsonFolder : jsonFolders) {
             List<Path> jsonFilePaths = FileUtils.getJsonFiles(jsonFolder);
             for (Path jsonFile : jsonFilePaths) {
-                if(directModeEnabled){System.out.println("Searching json file: " + jsonFile.getFileName().toString());}
+                System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
+
+                // Generiert Vorhersagen für die aktuelle JSON-Datei
                 Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFile, searchForWords, threads, ngrams, acceptanceThreshold, directModeEnabled);
                 allPredictions.attach(filePredictions);
             }
         }
 
+        // Entfernt Duplikate und sortiert die Vorhersagen
         return PredictionUtils.deduplicateAndSortPredictions(allPredictions.toTexture());
     }
 }

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+// Diese Klasse implementiert Callable und ist für das Laden von N-Grammen verantwortlich
 public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
     private final List<Texture<Script>> ngramsToSearch;
@@ -24,6 +25,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final int ngramSize;
     private final List<Prediction> mutablePredictions;
 
+    // Konstruktor für die Klasse
     public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int startNgramIndex, int endNgramIndex) {
         this.jsonFilePath = jsonFilePath;
         this.ngramsToSearch = paddedWords.grammy(ngrams);
@@ -34,12 +36,14 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         this.mutablePredictions = new ArrayList<>(predictions.toList());
     }
 
+    // Überschriebene call-Methode, die von Callable gefordert wird
     @Override
     public Texture<Prediction> call() throws Exception {
         loadExistingNgrams();
         return new Texture<>(mutablePredictions);
     }
 
+    // Lädt existierende N-Gramme aus der JSON-Datei
     private void loadExistingNgrams() throws IOException {
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
             skipWhitespaceAndOpenBracket(reader);
@@ -47,16 +51,18 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         }
     }
 
+    // Überspringt Leerzeichen und die öffnende eckige Klammer
     private void skipWhitespaceAndOpenBracket(BufferedReader reader) throws IOException {
         int c;
         while ((c = reader.read()) != -1 && Character.isWhitespace(c)) {
-            // Skip whitespace
+            // Überspringe Leerzeichen
         }
         if (c != '[') {
             throw new IOException("Expected '[' at the beginning of the JSON array");
         }
     }
 
+    // Verarbeitet die N-Gramme aus der JSON-Datei
     private void processNgrams(BufferedReader reader) throws IOException {
         int ngramIndex = 0;
         while (ngramIndex < endNgramIndex) {
@@ -71,6 +77,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         }
     }
 
+    // Springt zum nächsten N-Gramm in der JSON-Datei
     private boolean skipToNextNgram(BufferedReader reader) throws IOException {
         int c;
         while ((c = reader.read()) != -1) {
@@ -83,6 +90,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         return false;
     }
 
+    // Verarbeitet ein einzelnes N-Gramm aus der JSON-Datei
     private void processNgram(BufferedReader reader) throws IOException {
         StringBuilder ngramBuilder = new StringBuilder("[");
         int nestingLevel = 1;
@@ -121,12 +129,14 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         filterForSuggestions(ngram);
     }
 
+    // Filtert N-Gramme für Vorschläge
     private void filterForSuggestions(Texture<Script> inputNgram) {
         for (int i = 0; i < ngramsToSearch.size(); i++) {
             getSuggestion(ngramsToSearch.get(i), inputNgram, i);
         }
     }
 
+    // Ermittelt Vorschläge basierend auf den N-Grammen
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
         if (input.extent() != ngramSize || data.extent() != ngramSize) {
             return;
@@ -150,6 +160,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         }
     }
 
+    // Berechnet die Distanz zwischen zwei Wörtern
     private static Double distance(Script word1, Script word2) {
         if (word1.toString().isEmpty() || word2.toString().isEmpty()) {
             return -1.0;
