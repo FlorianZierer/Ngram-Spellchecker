@@ -45,7 +45,7 @@ public class SpellcheckerEvaluator {
 
             // Generiert Vorhersagen für den fehlerhaften Satz
             Texture<Script> words = new Texture<>(new Script(incorrect.toLowerCase()).split(" "));
-            Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, directMode);
+            Texture<Prediction> predictions = spellChecker.getPredictions(words, directMode);
             Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
             // Erstellt den korrigierten Satz und überprüft, ob er korrekt ist

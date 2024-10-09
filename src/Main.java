@@ -39,7 +39,7 @@ public class Main {
 			Texture<Script> words = new Texture<>(new Script(input).split(" "));
 
 			// Vorhersagen für die Wörter erhalten
-			Texture<Prediction> predictions = spellChecker.getPredictions(words, 10, 3, directmode);
+			Texture<Prediction> predictions = spellChecker.getPredictions(words, directmode);
 			Texture<Script> correctedWords = new Texture<>(predictions.map(Prediction::getPrediction).toList());
 
 			// Ergebnisse für jedes Wort ausgeben
@@ -68,13 +68,12 @@ public class Main {
 
 		// Parameter für den SpellChecker festlegen
 		double percent = 1;
-		int nGramLength = 3;
-		int mircothreads = 500;
-		int epochs = 5;
+		int mircothreads = 1000;
+		int epochs = 4;
+		Double acceptanceThreshold = 0.65;
 
-		Double acceptanceThreshold = 0.60;
-		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold);
-		spellChecker.setCorpora(path, percent, nGramLength, mircothreads, epochs);
+		SpellChecker spellChecker = new SpellChecker(acceptanceThreshold,mircothreads);
+		spellChecker.setCorpora(path, percent, epochs);
 
 		//SpellChecker evaluieren
 		//SpellcheckerEvaluator evaluator = new SpellcheckerEvaluator(spellChecker);

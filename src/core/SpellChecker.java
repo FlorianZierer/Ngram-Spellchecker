@@ -16,16 +16,19 @@ import java.util.concurrent.ExecutionException;
 
 // Diese Klasse implementiert einen Rechtschreibprüfer basierend auf N-Gramm-Modellen
 public class SpellChecker {
+    private final int nGramLength = 3; // fixed weil Predictions nur mit 3 Funktionieren. Generierung hätte damit kein Problem.
     private final double acceptanceThreshold;
     private List<Path> jsonFolders;
+    private int threads;
 
     // Konstruktor, der den Akzeptanzschwellenwert für Vorhersagen setzt
-    public SpellChecker(double acceptanceThreshold) {
+    public SpellChecker(double acceptanceThreshold, int threads) {
         this.acceptanceThreshold = acceptanceThreshold;
+        this.threads = threads;
     }
 
     // Methode zum Setzen und Generieren der Korpora für die Rechtschreibprüfung
-    public void setCorpora(Path directoryPath, double percent, int nGramLength, int threads, int epochs) {
+    public void setCorpora(Path directoryPath, double percent, int epochs) {
         try {
             // Generiert N-Gramme aus den Trainingsdaten
             NgramGenerator.generateNgrams(directoryPath, nGramLength, threads, percent, epochs);
@@ -37,7 +40,7 @@ public class SpellChecker {
     }
 
     // Methode zur Generierung von Vorhersagen für gegebene Wörter
-    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, int threads, int ngrams, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
+    public Texture<Prediction> getPredictions(Texture<Script> searchForWords, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> allPredictions = new Texture.Builder<>();
 
         // Durchsucht alle JSON-Dateien nach Vorhersagen
@@ -47,7 +50,7 @@ public class SpellChecker {
                 System.out.println(Constants.ANSI_RESET + "Searching json file: " + jsonFile.getFileName().toString() + Constants.ANSI_RESET );
 
                 // Generiert Vorhersagen für die aktuelle JSON-Datei
-                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFile, searchForWords, threads, ngrams, acceptanceThreshold, directModeEnabled);
+                Texture<Prediction> filePredictions = PredictionGenerator.generatePredictions(jsonFile, searchForWords, threads, nGramLength, acceptanceThreshold, directModeEnabled);
                 allPredictions.attach(filePredictions);
             }
         }
