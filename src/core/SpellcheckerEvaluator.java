@@ -40,8 +40,11 @@ public class SpellcheckerEvaluator {
             String incorrect = entry.get("incorrect");
 
             // Gibt den zu korrigierenden Satz aus
-            System.out.println(Constants.ANSI_BLUE + "Satz: " + incorrect + Constants.ANSI_RESET);
+            System.out.println();
             System.out.println(Constants.ANSI_YELLOW + "----------------------------------------------------------------------" + Constants.ANSI_RESET);
+            System.out.println();
+            System.out.println(Constants.ANSI_BLUE + "Satz: " + incorrect + Constants.ANSI_RESET);
+
 
             // Generiert Vorhersagen für den fehlerhaften Satz
             Texture<Script> words = new Texture<>(new Script(incorrect.toLowerCase()).split(" "));
