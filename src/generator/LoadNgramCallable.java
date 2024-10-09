@@ -23,14 +23,18 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final int ngramSize;
     private final List<Prediction> mutablePredictions;
     private final int threadID;
+    private final int startIndex;
+    private final int endIndex;
 
-    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int threadID, int ngrams, double acceptanceThreshold) {
+    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int threadID, int ngrams, double acceptanceThreshold, int startIndex, int endIndex) {
         this.jsonFilePath = jsonFilePath;
         this.ngramsToSearch = paddedWords.grammy(ngrams);
         this.acceptanceThreshold = acceptanceThreshold;
         this.ngramSize = ngrams;
         this.mutablePredictions = new ArrayList<>(predictions.toList());
         this.threadID = threadID;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
     }
 
     @Override
@@ -40,51 +44,42 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     }
 
     private void loadExistingNgrams() throws IOException {
-        int batchSize = FileUtils.calculateBatchSize(jsonFilePath, 1); // Assuming 1 epoch for simplicity
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            List<String> batch = new ArrayList<>();
             String line;
-            boolean isFirstBatch = true;
+            int currentIndex = 0;
+            StringBuilder batchBuilder = new StringBuilder("[");
 
-            while ((line = reader.readLine()) != null) {
-                batch.add(line);
+            while ((line = reader.readLine()) != null && currentIndex < endIndex) {
+                if (currentIndex >= startIndex) {
+                    if (batchBuilder.length() > 1) {
+                        batchBuilder.append(",");
+                    }
+                    batchBuilder.append(line);
 
-                if (batch.size() >= batchSize) {
-                    processNgramBatch(batch, isFirstBatch);
-                    batch.clear();
-                    isFirstBatch = false;
+                    if (batchBuilder.length() > 1000000) { // Process in chunks of approximately 1MB
+                        batchBuilder.append("]");
+                        processNgramBatch(batchBuilder.toString());
+                        batchBuilder = new StringBuilder("[");
+                    }
                 }
+                currentIndex++;
             }
 
-            if (!batch.isEmpty()) {
-                processNgramBatch(batch, isFirstBatch);
+            if (batchBuilder.length() > 1) {
+                batchBuilder.append("]");
+                processNgramBatch(batchBuilder.toString());
             }
         }
     }
 
-    private void processNgramBatch(List<String> batch, boolean isFirstBatch) throws IOException {
-        StringBuilder ngramBuilder = new StringBuilder();
-        if (!isFirstBatch) {
-            ngramBuilder.append("[");
+    private void processNgramBatch(String jsonBatch) {
+        try {
+            Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(jsonBatch);
+            Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
+            filterForSuggestions(ngram);
+        } catch (Exception e) {
+            System.err.println("Thread " + threadID + ": Error processing JSON batch: " + e.getMessage());
         }
-
-        for (int i = 0; i < batch.size(); i++) {
-            if (i > 0) {
-                ngramBuilder.append(",");
-            }
-            ngramBuilder.append(batch.get(i));
-        }
-
-        if (batch.size() < FileUtils.calculateBatchSize(jsonFilePath, 1)) {
-            ngramBuilder.append("]");
-        } else {
-            ngramBuilder.setLength(ngramBuilder.length() - 1);
-            ngramBuilder.append("]");
-        }
-
-        Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramBuilder.toString());
-        Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
-        filterForSuggestions(ngram);
     }
 
     private void filterForSuggestions(Texture<Script> inputNgram) {
