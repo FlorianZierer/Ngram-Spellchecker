@@ -62,9 +62,17 @@ public class FileUtils {
         int sentenceCount = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
+            int lineCount = 0;
             while ((line = reader.readLine()) != null) {
-                sentenceCount += countOccurrences(line, "\"\",\"\"");
+                lineCount++;
+                int sentencesInLine = countOccurrences(line, ",\"\"]");
+                sentenceCount += sentencesInLine;
+                if (lineCount <= 5 || sentencesInLine > 0) {
+                    System.out.println("Line " + lineCount + ": " + sentencesInLine + " sentences, Content: " + line.substring(0, Math.min(50, line.length())) + "...");
+                }
             }
+            System.out.println("Total lines in file: " + lineCount);
+            System.out.println("Total sentences counted: " + sentenceCount);
         }
         return sentenceCount;
     }
