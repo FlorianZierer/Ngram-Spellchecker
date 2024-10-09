@@ -13,6 +13,9 @@ public class Prediction {
     private Texture<Suggestion> suggestionsBiGram;
     private Texture<Suggestion> suggestionsDirect;
 
+    private static final double IGNORE_THRESHOLD = 0.90;
+    private static final double PERFECT_SCORE = 1.0;
+
     public Prediction(Script word) {
         this.word = word;
         this.suggestionsTriGram = new Texture<>();
@@ -20,45 +23,30 @@ public class Prediction {
         this.suggestionsDirect = new Texture<>();
     }
 
-    public Prediction() {}
-
-    public Prediction(Prediction prediction1, Prediction prediction2) {
-        // Check if either prediction is null or has a null word
-        if (prediction1 == null || prediction2 == null ||
-                prediction1.getWord() == null || prediction2.getWord() == null) {
-            return;
-        }
-
-        // Check if words are equal, considering null cases
-        if (!Objects.equals(prediction1.getWord(), prediction2.getWord())) {
-            return;
-        }
-
-        this.word = prediction1.getWord(); // Set the word
-
-        // Merge TriGram suggestions
-        Texture<Suggestion> mergedTriGram = mergeSuggestions(prediction1.getSuggestionsTriGram(), prediction2.getSuggestionsTriGram());
-        setSuggestionsTriGram(mergedTriGram);
-
-        // Merge BiGram suggestions
-        Texture<Suggestion> mergedBiGram = mergeSuggestions(prediction1.getSuggestionsBiGram(), prediction2.getSuggestionsBiGram());
-        setSuggestionsBiGram(mergedBiGram);
-
-        // Merge Direct suggestions
-        Texture<Suggestion> mergedDirect = mergeSuggestions(prediction1.getSuggestionsDirect(), prediction2.getSuggestionsDirect());
-        setSuggestionsDirect(mergedDirect);
-    }
 
     public Script getPrediction() {
         if (suggestionsTriGram != null && !suggestionsTriGram.isEmpty()) {
-            return this.suggestionsTriGram.at(0).getScript();
+            Suggestion triGramSuggestion = suggestionsTriGram.at(0);
+            if (triGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
+                return triGramSuggestion.getScript();
+            }
         }
+
         if (suggestionsBiGram != null && !suggestionsBiGram.isEmpty()) {
-            return this.suggestionsBiGram.at(0).getScript();
+            Suggestion biGramSuggestion = suggestionsBiGram.at(0);
+            if (biGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
+                return biGramSuggestion.getScript();
+            }
         }
+
         if (suggestionsDirect != null && !suggestionsDirect.isEmpty()) {
-            return this.suggestionsDirect.at(0).getScript();
+            Suggestion directSuggestion = suggestionsDirect.at(0);
+            if (directSuggestion.getDistance() == PERFECT_SCORE) {
+                return directSuggestion.getScript();
+            }
         }
+
+        // If no suggestion meets the criteria, return the original word
         return word;
     }
 

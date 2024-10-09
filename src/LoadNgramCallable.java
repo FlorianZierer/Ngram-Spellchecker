@@ -13,7 +13,7 @@ import java.util.concurrent.Callable;
 
 class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final Path jsonFilePath;
-    private final Texture<Texture<Script>> ngramsToSearch;
+    private final List<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;
     private final int startNgramIndex;
     private final int endNgramIndex;
@@ -22,7 +22,7 @@ class LoadNgramCallable implements Callable<Texture<Prediction>> {
 
     public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int startNgramIndex, int endNgramIndex) {
         this.jsonFilePath = jsonFilePath;
-        this.ngramsToSearch = new Texture<>(paddedWords.grammy(ngrams));
+        this.ngramsToSearch = paddedWords.grammy(ngrams);
         this.acceptanceThreshold = acceptanceThreshold;
         this.startNgramIndex = startNgramIndex;
         this.endNgramIndex = endNgramIndex;
@@ -36,122 +36,117 @@ class LoadNgramCallable implements Callable<Texture<Prediction>> {
         return new Texture<>(mutablePredictions);
     }
 
-    // Load existing N-grams from a JSON file incrementally
     private void loadExistingNgrams() throws IOException {
         try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            int c = reader.read();
-            // Skip any whitespace
-            while (Character.isWhitespace(c)) {
-                c = reader.read();
-            }
-            if (c != '[') {
-                throw new IOException("Expected '[' at the beginning of the JSON array");
-            }
+            skipWhitespaceAndOpenBracket(reader);
+            processNgrams(reader);
+        }
+    }
 
-            int ngramIndex = 0;
-            boolean endOfFile = false;
+    private void skipWhitespaceAndOpenBracket(BufferedReader reader) throws IOException {
+        int c;
+        while ((c = reader.read()) != -1 && Character.isWhitespace(c)) {
+            // Skip whitespace
+        }
+        if (c != '[') {
+            throw new IOException("Expected '[' at the beginning of the JSON array");
+        }
+    }
 
-            // Read n-gram arrays one by one
-            while (!endOfFile) {
-                // Skip any whitespace or commas
-                do {
-                    c = reader.read();
-                    if (c == -1) {
-                        endOfFile = true;
-                        break;
-                    }
-                } while (Character.isWhitespace(c) || c == ',');
-
-                if (endOfFile || c == ']') {
-                    // End of the top-level array
-                    break;
+    private void processNgrams(BufferedReader reader) throws IOException {
+        int ngramIndex = 0;
+        while (ngramIndex < endNgramIndex) {
+            if (skipToNextNgram(reader)) {
+                if (ngramIndex >= startNgramIndex) {
+                    processNgram(reader);
                 }
-
-                if (c != '[') {
-                    throw new IOException("Expected '[' at the beginning of n-gram array");
-                }
-
-                StringBuilder ngramBuilder = new StringBuilder();
-                ngramBuilder.append((char) c);
-                int nestingLevel = 1;
-                boolean inString = false;
-                boolean escape = false;
-
-                while (nestingLevel > 0) {
-                    c = reader.read();
-                    if (c == -1) {
-                        throw new IOException("Unexpected end of file");
-                    }
-                    char ch = (char) c;
-                    ngramBuilder.append(ch);
-
-                    if (inString) {
-                        if (escape) {
-                            escape = false;
-                        } else if (ch == '\\') {
-                            escape = true;
-                        } else if (ch == '"') {
-                            inString = false;
-                        }
-                    } else {
-                        if (ch == '"') {
-                            inString = true;
-                        } else if (ch == '[') {
-                            nestingLevel++;
-                        } else if (ch == ']') {
-                            nestingLevel--;
-                        }
-                    }
-                }
-
-                if (ngramIndex >= startNgramIndex && ngramIndex < endNgramIndex) {
-                    // Now ngramBuilder contains the n-gram array as a String
-                    String ngramString = ngramBuilder.toString();
-                    Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramString);
-                    Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
-                    filterForSuggestions(ngram);
-                }
-
                 ngramIndex++;
-
-                if (ngramIndex >= endNgramIndex) {
-                    break;
-                }
+            } else {
+                break;
             }
         }
     }
 
+    private boolean skipToNextNgram(BufferedReader reader) throws IOException {
+        int c;
+        while ((c = reader.read()) != -1) {
+            if (c == '[') {
+                return true;
+            } else if (c == ']') {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private void processNgram(BufferedReader reader) throws IOException {
+        StringBuilder ngramBuilder = new StringBuilder("[");
+        int nestingLevel = 1;
+        boolean inString = false;
+        boolean escape = false;
+
+        while (nestingLevel > 0) {
+            int c = reader.read();
+            if (c == -1) {
+                throw new IOException("Unexpected end of file");
+            }
+            char ch = (char) c;
+            ngramBuilder.append(ch);
+
+            if (inString) {
+                if (escape) {
+                    escape = false;
+                } else if (ch == '\\') {
+                    escape = true;
+                } else if (ch == '"') {
+                    inString = false;
+                }
+            } else {
+                if (ch == '"') {
+                    inString = true;
+                } else if (ch == '[') {
+                    nestingLevel++;
+                } else if (ch == ']') {
+                    nestingLevel--;
+                }
+            }
+        }
+
+        Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(ngramBuilder.toString());
+        Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
+        filterForSuggestions(ngram);
+    }
+
     private void filterForSuggestions(Texture<Script> inputNgram) {
-        for (int i = 0; i < ngramsToSearch.extent(); i++) {
-            getSuggestion(ngramsToSearch.at(i), inputNgram, i);
+        for (int i = 0; i < ngramsToSearch.size(); i++) {
+            getSuggestion(ngramsToSearch.get(i), inputNgram, i);
         }
     }
 
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
         if (input.extent() != ngramSize || data.extent() != ngramSize) {
-            return; // Skip if not matching n-gram size
+            return;
         }
 
-        double distance1 = distance(input.at(0), data.at(0));
-        double distance2 = distance(input.at(1), data.at(1));
-        double distance3 = distance(input.at(2), data.at(2));
+        double[] distances = new double[3];
+        boolean[] distanceValid = new boolean[3];
 
-        boolean distance1Valid = distance1 >= acceptanceThreshold;
-        boolean distance2Valid = distance2 >= acceptanceThreshold;
-        boolean distance3Valid = distance3 >= acceptanceThreshold;
+        for (int i = 0; i < 3; i++) {
+            distances[i] = distance(input.at(i), data.at(i));
+            distanceValid[i] = distances[i] >= acceptanceThreshold;
+        }
 
-        if (distance1Valid && distance2Valid && distance3Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
-        } else if ((distance1Valid || distance3Valid) && distance2Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
-        } else if (distance2Valid && !distance1Valid && !distance3Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
+        Prediction prediction = mutablePredictions.get(predictionIndex);
+        if (distanceValid[0] && distanceValid[1] && distanceValid[2]) {
+            prediction.addSuggestionTriGram(new Suggestion(distances[1], data.at(1)));
+        } else if ((distanceValid[0] || distanceValid[2]) && distanceValid[1]) {
+            prediction.addSuggestionBiGram(new Suggestion(distances[1], data.at(1)));
+        } else if (distanceValid[1] && !distanceValid[0] && !distanceValid[2]) {
+            prediction.addSuggestionDirect(new Suggestion(distances[1], data.at(1)));
         }
     }
 
-
-    // Calculates the Levenshtein distance between two words
-    static public Double distance(Script word1, Script word2) {
+    private static Double distance(Script word1, Script word2) {
         if (word1.toString().isEmpty() || word2.toString().isEmpty()) {
             return -1.0;
         }

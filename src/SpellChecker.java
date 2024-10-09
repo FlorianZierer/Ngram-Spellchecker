@@ -1,4 +1,3 @@
-import lingolava.Legacy;
 import lingologs.Script;
 import lingologs.Texture;
 
@@ -8,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class SpellChecker {
 
