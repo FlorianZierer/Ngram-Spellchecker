@@ -14,6 +14,7 @@ import java.util.logging.Level;
 
 import static util.PredictionUtils.distance;
 
+// Diese Klasse implementiert Callable und ist verantwortlich für das Laden und Verarbeiten von N-Grammen
 public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private static final Logger LOGGER = Logger.getLogger(LoadNgramCallable.class.getName());
 
@@ -23,6 +24,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
     private final int epoch;
     private final String[] jsonArray;
 
+    // Konstruktor initialisiert die notwendigen Daten für die N-Gram-Verarbeitung
     public LoadNgramCallable(String[] jsonArray, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int epoch) {
         this.jsonArray = jsonArray;
         this.ngramsToSearch = paddedWords.grammy(ngrams);
@@ -31,29 +33,32 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
         this.epoch = epoch;
     }
 
+    // Hauptmethode, die beim Aufruf des Callable ausgeführt wird
     @Override
     public Texture<Prediction> call() throws Exception {
         try {
             processNgramBatch(jsonArray[epoch]);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error in call method", e);
+            LOGGER.log(Level.SEVERE, "Fehler in der call-Methode", e);
         }
         return new Texture<>(mutablePredictions);
     }
 
+    // Verarbeitet einen Batch von N-Grammen aus dem JSON-String
     private void processNgramBatch(String jsonBatch) {
         try {
             Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(jsonBatch);
             Texture<Texture<Script>> loadedNgrams = new Texture<>(ngramNote.asList(d -> new Texture<>(d.asList(inner -> new Script(inner.asString())))));
             loadedNgrams.forEach(this::filterForSuggestions);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error processing ngram batch", e);
+            LOGGER.log(Level.SEVERE, "Fehler bei der Verarbeitung des N-Gram-Batches", e);
         }
     }
 
+    // Filtert die Eingabe-N-Gramme für mögliche Vorschläge
     private void filterForSuggestions(Texture<Script> inputNgram) {
         if (inputNgram == null || inputNgram.extent() == 0) {
-            LOGGER.warning("Null or empty inputNgram encountered");
+            LOGGER.warning("Null oder leeres inputNgram gefunden");
             return;
         }
 
@@ -62,18 +67,20 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
             try {
                 getSuggestion(ngramsToSearch.get(i), inputNgram, i);
             } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error processing suggestion for index " + i, e);
+                LOGGER.log(Level.SEVERE, "Fehler bei der Verarbeitung des Vorschlags für Index " + i, e);
             }
         }
     }
 
+    // Generiert Vorschläge basierend auf den Eingabe- und Daten-N-Grammen
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
         try {
             if (input == null || data == null || input.extent() < 3 || data.extent() < 3) {
-                LOGGER.warning("Invalid input or data in getSuggestion: input=" + input + ", data=" + data);
+                LOGGER.warning("Ungültige Eingabe oder Daten in getSuggestion: input=" + input + ", data=" + data);
                 return;
             }
 
+            // Berechnet die Distanzen zwischen den N-Grammen
             double distance1 = distance(input.at(0), data.at(0));
             double distance2 = distance(input.at(1), data.at(1));
             double distance3 = distance(input.at(2), data.at(2));
@@ -84,10 +91,11 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
 
             Prediction prediction = mutablePredictions.get(predictionIndex);
             if (prediction == null) {
-                LOGGER.warning("Null prediction at index " + predictionIndex);
+                LOGGER.warning("Null-Vorhersage am Index " + predictionIndex);
                 return;
             }
 
+            // Fügt Vorschläge basierend auf den berechneten Distanzen hinzu
             if (distance1Valid && distance2Valid && distance3Valid) {
                 prediction.addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
             } else if ((distance1Valid || distance3Valid) && distance2Valid) {
@@ -96,7 +104,7 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> {
                 prediction.addSuggestionDirect(new Suggestion(distance2, data.at(1)));
             }
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error in getSuggestion method", e);
+            LOGGER.log(Level.SEVERE, "Fehler in der getSuggestion-Methode", e);
         }
     }
 }

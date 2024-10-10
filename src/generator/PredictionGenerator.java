@@ -24,6 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class PredictionGenerator {
+    // Hauptmethode zur Generierung von Vorhersagen aus JSON-Dateien
     public static Texture<Prediction> generatePredictions(List<Path> jsonFiles, Texture<Script> searchForWords, int nGramLength, double acceptanceThreshold, boolean directModeEnabled) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
 
@@ -32,6 +33,7 @@ public class PredictionGenerator {
 
         int epochs = FileUtils.getEpochs(jsonFiles.getFirst());
 
+        // Zeitmessung für das Laden der JSON-Dateien
         long startTime = System.nanoTime();
         Texture.Builder<String[]> jsonListBuilder = new Texture.Builder<>();
         for( Path jsonfile : jsonFiles) {
@@ -44,8 +46,7 @@ public class PredictionGenerator {
 
         System.out.println(Constants.ANSI_GREEN + "Gesamtzeit für das Laden aller Json files in ein String Array: " + String.format("%.2f", durationInSeconds) + " Sekunden" + Constants.ANSI_RESET);
 
-
-
+        // Zeitmessung für die Verarbeitung aller Epochen
         long startTime2 = System.nanoTime();
         for (int epoch = 0; epoch < epochs; epoch++) {
             System.out.println(Constants.ANSI_BLUE + jsonFiles.getFirst().getParent().toString() + " wird in Epoche " +  epoch + " geladen "  +  Constants.ANSI_RESET );
@@ -59,16 +60,16 @@ public class PredictionGenerator {
         return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
     }
 
-    // Hauptmethode zur Generierung von Vorhersagen
+    // Methode zur Vorhersage einer Epoche mit Multithreading
     public static Texture<Prediction> predictEpochMultiThreaded(Texture<String[]> jsonList, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int epoch) throws IOException, ExecutionException, InterruptedException {
         Texture.Builder<Prediction> predictionBuilder = new Texture.Builder<>();
 
         List<LoadNgramCallable> ngramCallables = new ArrayList<>();
         for (int i = 0; i < jsonList.extent(); i++) {
-
             ngramCallables.add(new LoadNgramCallable(jsonList.at(i), predictions, paddedWords, ngrams, acceptanceThreshold, epoch));
         }
 
+        // Verwendung eines ExecutorService für parallele Verarbeitung
         ExecutorService executorService = Executors.newFixedThreadPool(jsonList.extent());
         List<Future<Texture<Prediction>>> futures = executorService.invokeAll(ngramCallables);
 
@@ -81,6 +82,7 @@ public class PredictionGenerator {
         return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
     }
 
+    // Hilfsmethode zum Hinzufügen von Padding zu den Suchwörtern
     private static Texture<Script> addPadding(Texture<Script> wordsToSearch) {
         Texture.Builder<Script> paddedWords = new Texture.Builder<>();
         paddedWords.attach(Script.of(""));

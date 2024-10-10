@@ -5,17 +5,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+// Diese Klasse verwendet eine spezialisierte Datenstruktur anstelle einer normalen Liste
+// um effiziente und threadsichere Operationen auf Vorschlägen zu ermöglichen
 public class SuggestionSet {
+    // CopyOnWriteArrayList wird verwendet, um Threadsicherheit zu gewährleisten
     private final List<Suggestion> suggestions;
 
     public SuggestionSet() {
         this.suggestions = new CopyOnWriteArrayList<>();
     }
 
+    // Synchronisierte Methode zum Hinzufügen oder Aktualisieren von Vorschlägen
+    // Dies verhindert Konflikte bei gleichzeitigen Zugriffen
     public synchronized void add(Suggestion suggestion) {
         for (int i = 0; i < suggestions.size(); i++) {
             Suggestion existing = suggestions.get(i);
             if (existing.getScript().equals(suggestion.getScript())) {
+                // Aktualisiert einen vorhandenen Vorschlag, anstatt einen neuen hinzuzufügen
                 Suggestion newSuggestion = new Suggestion(
                         Math.max(existing.getDistance(), suggestion.getDistance()),
                         existing.getScript(),
@@ -30,6 +36,8 @@ public class SuggestionSet {
         sortSuggestions();
     }
 
+    // Sortiert die Vorschläge nach benutzerdefinierten Kriterien
+    // Dies wäre mit einer normalen Liste schwieriger zu implementieren
     private synchronized void sortSuggestions() {
         List<Suggestion> tempList = new ArrayList<>(suggestions);
         Collections.sort(tempList, (s1, s2) -> {
@@ -46,6 +54,8 @@ public class SuggestionSet {
         suggestions.clear();
         suggestions.addAll(tempList);
     }
+
+    // Weitere synchronisierte Methoden für threadsichere Operationen
 
     public synchronized void clear() {
         suggestions.clear();

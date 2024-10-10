@@ -159,11 +159,4 @@ public class CreateNgramCallable implements Callable<Texture<Texture<Script>>> {
         paddedSentence.attach(Script.of(""));
         return paddedSentence.toTexture();
     }
-
-    // Verarbeitet den Buffer und fügt die Wörter zum Builder hinzu
-    private void processBuffer(List<String> buffer, Texture.Builder<Script> builder) {
-        for (String word : buffer) {
-            builder.attach(new Script(word));
-        }
-    }
 }

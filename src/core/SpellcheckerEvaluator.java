@@ -14,15 +14,18 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
+// Klasse zur Evaluierung des Rechtschreibprüfers
 public class SpellcheckerEvaluator {
     private static final String EVALUATION_DATASET_PATH = ".\\Transcripts\\Evaluation\\evaluation_dataset.json";
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 10; // Größe der zu verarbeitenden Batches
     private SpellChecker spellChecker;
 
+    // Konstruktor für den SpellcheckerEvaluator
     public SpellcheckerEvaluator(SpellChecker spellChecker) {
         this.spellChecker = spellChecker;
     }
 
+    // Methode zur Evaluierung des Rechtschreibprüfers
     public double evaluate(boolean directMode) throws IOException, ExecutionException, InterruptedException {
         List<Map<String, String>> dataset = loadDataset(Path.of(EVALUATION_DATASET_PATH));
         int totalSentences = dataset.size();
@@ -44,6 +47,7 @@ public class SpellcheckerEvaluator {
         return accuracy;
     }
 
+    // Methode zur Verarbeitung eines Batches von Sätzen
     private int processBatch(List<Map<String, String>> batchDataset, boolean directMode, int batchStart) throws ExecutionException, InterruptedException, IOException {
         int correctlyCorrected = 0;
         List<Script> allPaddedWords = new ArrayList<>();
@@ -120,7 +124,6 @@ public class SpellcheckerEvaluator {
             wordIndex += paddedSentence.size();
         }
 
-
         PredictionUtils.clearCache();
         for (Prediction prediction : allPredictions.toList()) {
             prediction.clear();
@@ -129,16 +132,18 @@ public class SpellcheckerEvaluator {
         return correctlyCorrected;
     }
 
+    // Methode zum Hinzufügen von Polsterung zu einem Satz um Anfang und Ende zu kennzeichnen
     private List<Script> padSentence(String sentence) {
         List<Script> words = new ArrayList<>();
-        words.add(new Script("")); // Add padding at the beginning
+        words.add(new Script("")); // Polsterung am Anfang hinzufügen
         for (String word : sentence.toLowerCase().split(" ")) {
             words.add(new Script(word));
         }
-        words.add(new Script("")); // Add padding at the end
+        words.add(new Script("")); // Polsterung am Ende hinzufügen
         return words;
     }
 
+    // Methode zum Laden des Evaluierungsdatensatzes
     public static List<Map<String, String>> loadDataset(Path EVALUATION_DATASET_PATH) throws IOException {
         String evalData = Files.readString(EVALUATION_DATASET_PATH);
         Nexus.DataNote readNgram = Nexus.DataNote.byJSON(evalData);
