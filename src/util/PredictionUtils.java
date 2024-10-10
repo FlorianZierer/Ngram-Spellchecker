@@ -28,7 +28,7 @@ public class PredictionUtils {
         }
         double cosineSimularity = word1.similares(word2, Legacy.Similitude.Cosine);
         double levenshteinDistance = word1.similares(word2, Legacy.Similitude.Levenshtein);
-        return (0.5 * cosineSimularity) + (0.5 * levenshteinDistance);
+        return (0.2 * cosineSimularity) + (0.8 * levenshteinDistance);
     }
 
     // Dedupliziert und sortiert Vorhersagen
