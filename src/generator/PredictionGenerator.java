@@ -32,19 +32,30 @@ public class PredictionGenerator {
 
         int epochs = FileUtils.getEpochs(jsonFiles.getFirst());
 
+        long startTime = System.nanoTime();
         Texture.Builder<String[]> jsonListBuilder = new Texture.Builder<>();
         for( Path jsonfile : jsonFiles) {
             String content = Files.readString(jsonfile);
             jsonListBuilder.attach(content.split("###JSON_PART###"));
         }
+        long endTime = System.nanoTime();
+        long durationInNanos = endTime - startTime;
+        double durationInSeconds = durationInNanos / 1_000_000_000.0;
+
+        System.out.println(Constants.ANSI_GREEN + "Gesamtzeit für das Laden aller Json files in ein String Array: " + String.format("%.2f", durationInSeconds) + " Sekunden" + Constants.ANSI_RESET);
 
 
 
-
+        long startTime2 = System.nanoTime();
         for (int epoch = 0; epoch < epochs; epoch++) {
-            System.out.println(Constants.ANSI_BLUE + jsonFiles.getFirst().getParent().toString() + " wird in Epoche " +  epoch + " geladen "  +  Constants.ANSI_BLUE );
+            System.out.println(Constants.ANSI_BLUE + jsonFiles.getFirst().getParent().toString() + " wird in Epoche " +  epoch + " geladen "  +  Constants.ANSI_RESET );
             predictionBuilder.attach(predictEpochMultiThreaded(jsonListBuilder.toTexture(), predictions, paddedWords, nGramLength, acceptanceThreshold, epoch));
         }
+        long endTime2 = System.nanoTime();
+        long durationInNanos2 = endTime2 - startTime2;
+        double durationInSeconds2 = durationInNanos2 / 1_000_000_000.0;
+
+        System.out.println(Constants.ANSI_GREEN + "Gesamtzeit für alle Epochen laden von Suggestions : " + String.format("%.2f", durationInSeconds2) + " Sekunden" + Constants.ANSI_RESET);
         return PredictionUtils.deduplicateAndSortPredictions(predictionBuilder.toTexture());
     }
 

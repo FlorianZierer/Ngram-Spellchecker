@@ -62,13 +62,18 @@ public class NgramGenerator {
         int batchSize = lines / epochs;
         int batchPerThread = batchSize / threads;
 
+        long startTime = System.nanoTime();
         // Verarbeitung in Epochen
         for (int epoch = 0; epoch < epochs; epoch++) {
-            System.out.println(filename + " wird in Epoche " + epoch + " geladen" + Constants.ANSI_BLUE);
+            System.out.println( Constants.ANSI_BLUE + filename + " wird in Epoche " + epoch + " geladen" + Constants.ANSI_RESET);
             Texture<Texture<Script>> epochResult = createEpochMultiThreaded(filePath, nGramLength, batchPerThread, threads, epoch);
             ngramsBuilder.attach(epochResult);
         }
-        System.out.println(filename + " JSON-Erstellung abgeschlossen" + Constants.ANSI_PURPLE);
+        long endTime = System.nanoTime();
+        long durationInNanos = endTime - startTime;
+        double durationInSeconds = durationInNanos / 1_000_000_000.0;
+
+        System.out.println(Constants.ANSI_GREEN + "Gesamtzeit für alle Epochen zum Generieren von Json Files : " + String.format("%.2f", durationInSeconds) + " Sekunden" + Constants.ANSI_RESET);
         return ngramsBuilder.toTexture();
     }
 
