@@ -1,99 +1,95 @@
 package model;
 
 import lingologs.Script;
-import lingologs.Texture;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
-// Klasse zur Handhabung von Vorhersagen basierend auf verschiedenen Suggestion-Typen
 public class Prediction {
     private Script word;
-    private Texture<Suggestion> suggestionsTriGram;
-    private Texture<Suggestion> suggestionsBiGram;
-    private Texture<Suggestion> suggestionsDirect;
-    private static final double IGNORE_THRESHOLD = 0.90;
-    private static final double PERFECT_SCORE = 1.0;
+    private List<Suggestion> suggestionsTriGram;
+    private List<Suggestion> suggestionsBiGram;
+    private List<Suggestion> suggestionsDirect;
+    private static final double IGNORE_PERFECT_SCORE_THRESHOLD = 0.90;
+    private static final double PERFECT_SCORE = 0.99;
     private boolean directModeEnabled;
 
-    // Konstruktor für die Prediction-Klasse
     public Prediction(Script word, boolean directModeEnabled) {
         this.word = word;
-        this.suggestionsTriGram = new Texture<>();
-        this.suggestionsBiGram = new Texture<>();
-        this.suggestionsDirect = new Texture<>();
+        this.suggestionsTriGram = new ArrayList<>();
+        this.suggestionsBiGram = new ArrayList<>();
+        this.suggestionsDirect = new ArrayList<>();
         this.directModeEnabled = directModeEnabled;
     }
 
-    // Methode zur Ermittlung der besten Vorhersage basierend auf den verfügbaren Suggestions
     public Script getPrediction() {
+        // Direct Mode - Keine Hierarchie
         if (directModeEnabled) {
-            // Logik für den direkten Modus
-            if (suggestionsDirect != null && !suggestionsDirect.isEmpty()) {
-                Suggestion directSuggestion = suggestionsDirect.at(0);
-                if (directSuggestion.getDistance() >= IGNORE_THRESHOLD) {
-                    return directSuggestion.getScript();
-                }
+            if (!suggestionsDirect.isEmpty()) {
+                return suggestionsDirect.getFirst().getScript();
             }
-            return word;
+            return word; // Fallback auf das Originalwort
         }
 
-        // Logik für den nicht-direkten Modus
-        if (suggestionsTriGram != null && !suggestionsTriGram.isEmpty()) {
-            Suggestion triGramSuggestion = suggestionsTriGram.at(0);
-            if (triGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
-                return triGramSuggestion.getScript();
-            }
+        // 1. Prüfe auf IGNORE_PERFECT_SCORE_THRESHOLD in der Hierarchie
+        if (!suggestionsTriGram.isEmpty() && suggestionsTriGram.getFirst().getDistance() >= IGNORE_PERFECT_SCORE_THRESHOLD) {
+            return suggestionsTriGram.getFirst().getScript();
+        }
+        if (!suggestionsBiGram.isEmpty() && suggestionsBiGram.getFirst().getDistance() >= IGNORE_PERFECT_SCORE_THRESHOLD) {
+            return suggestionsBiGram.getFirst().getScript();
+        }
+        if (!suggestionsDirect.isEmpty() && suggestionsDirect.getFirst().getDistance() >= IGNORE_PERFECT_SCORE_THRESHOLD) {
+            return suggestionsDirect.getFirst().getScript();
         }
 
-        if (suggestionsBiGram != null && !suggestionsBiGram.isEmpty()) {
-            Suggestion biGramSuggestion = suggestionsBiGram.at(0);
-            if (biGramSuggestion.getDistance() >= IGNORE_THRESHOLD) {
-                return biGramSuggestion.getScript();
-            }
+        // 2. Prüfe auf Perfect Score in der Hierarchie
+        if (!suggestionsTriGram.isEmpty() && suggestionsTriGram.getFirst().getDistance() == PERFECT_SCORE) {
+            return suggestionsTriGram.getFirst().getScript();
+        }
+        if (!suggestionsBiGram.isEmpty() && suggestionsBiGram.getFirst().getDistance() == PERFECT_SCORE) {
+            return suggestionsBiGram.getFirst().getScript();
+        }
+        if (!suggestionsDirect.isEmpty() && suggestionsDirect.getFirst().getDistance() == PERFECT_SCORE) {
+            return suggestionsDirect.getFirst().getScript();
         }
 
-        if (suggestionsDirect != null && !suggestionsDirect.isEmpty()) {
-            Suggestion directSuggestion = suggestionsDirect.at(0);
-            if (directSuggestion.getDistance() == PERFECT_SCORE) {
-                return directSuggestion.getScript();
-            }
+        // 3. Durchlaufe die Hierarchie ohne weitere Bedingungen
+        if (!suggestionsTriGram.isEmpty()) {
+            return suggestionsTriGram.getFirst().getScript();
+        }
+        if (!suggestionsBiGram.isEmpty()) {
+            return suggestionsBiGram.getFirst().getScript();
+        }
+        if (!suggestionsDirect.isEmpty()) {
+            return suggestionsDirect.getFirst().getScript();
         }
 
+        // Fallback auf das Originalwort, wenn keine Vorschläge vorhanden sind
         return word;
     }
 
-    // Methode zum Zusammenführen von zwei Suggestion-Listen
-    private Texture<Suggestion> mergeSuggestions(Texture<Suggestion> suggestions1, Texture<Suggestion> suggestions2) {
-        List<Suggestion> mergedList = new ArrayList<>();
-
-        if (suggestions1 != null) {
-            mergedList.addAll(suggestions1.toList());
-        }
-
-        if (suggestions2 != null) {
-            for (Suggestion suggestion : suggestions2) {
-                boolean found = false;
-                for (Suggestion existingSuggestion : mergedList) {
-                    if (Objects.equals(suggestion.getScript(), existingSuggestion.getScript())) {
-                        existingSuggestion.merge(suggestion);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    mergedList.add(suggestion);
-                }
-            }
-        }
-
-        return new Texture<>(mergedList);
+    public void reduceAllLists() {
+        reduceList(suggestionsTriGram);
+        reduceList(suggestionsBiGram);
+        reduceList(suggestionsDirect);
+        sortLists();
     }
 
-    // Methode zum Sortieren der Suggestions basierend auf Distanz und Wiederholungsanzahl
-    public void sort() {
+    public void reduceList(List<Suggestion> suggestions) {
+        List<Suggestion> reducedList = suggestions.stream()
+                .collect(Collectors.groupingBy(Suggestion::getScript,
+                        Collectors.reducing(Suggestion::merge)))
+                .values()
+                .stream()
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+
+        suggestions.clear();
+        suggestions.addAll(reducedList);
+    }
+
+    public void sortLists() {
         Comparator<Suggestion> suggestionComparator = (s1, s2) -> {
             int distanceCompare = Double.compare(s2.getDistance(), s1.getDistance());
             if (distanceCompare != 0) {
@@ -102,87 +98,44 @@ public class Prediction {
             return Integer.compare(s2.getRepetitionCount(), s1.getRepetitionCount());
         };
 
-        if (suggestionsTriGram != null) {
-            this.suggestionsTriGram = new Texture<>(suggestionsTriGram.toList().stream()
-                    .sorted(suggestionComparator)
-                    .toList());
-        }
-
-        if (suggestionsBiGram != null) {
-            this.suggestionsBiGram = new Texture<>(suggestionsBiGram.toList().stream()
-                    .sorted(suggestionComparator)
-                    .toList());
-        }
-
-        if (suggestionsDirect != null) {
-            this.suggestionsDirect = new Texture<>(suggestionsDirect.toList().stream()
-                    .sorted(suggestionComparator)
-                    .toList());
-        }
+        suggestionsTriGram.sort(suggestionComparator);
+        suggestionsBiGram.sort(suggestionComparator);
+        suggestionsDirect.sort(suggestionComparator);
     }
 
-    // Methoden zum Hinzufügen von Suggestions zu den verschiedenen Listen
-
     public void addSuggestionTriGram(Suggestion suggestion) {
-        if (suggestionsTriGram == null) {
-            suggestionsTriGram = new Texture<>();
-        }
-        addSuggestion(suggestion, suggestionsTriGram, s -> this.suggestionsTriGram = s);
+        this.suggestionsTriGram.add(suggestion);
     }
 
     public void addSuggestionBiGram(Suggestion suggestion) {
-        if (suggestionsBiGram == null) {
-            suggestionsBiGram = new Texture<>();
-        }
-        addSuggestion(suggestion, suggestionsBiGram, s -> this.suggestionsBiGram = s);
+        this.suggestionsBiGram.add(suggestion);
     }
 
     public void addSuggestionDirect(Suggestion suggestion) {
-        if (suggestionsDirect == null) {
-            suggestionsDirect = new Texture<>();
-        }
-        addSuggestion(suggestion, suggestionsDirect, s -> this.suggestionsDirect = s);
+        this.suggestionsDirect.add(suggestion);
     }
 
-    // Hilfsmethode zum Hinzufügen einer Suggestion zu einer Liste
-    private void addSuggestion(Suggestion suggestion, Texture<Suggestion> suggestions, java.util.function.Consumer<Texture<Suggestion>> setter) {
-        boolean found = false;
-        for (Suggestion s : suggestions) {
-            if (suggestion.getScript().equals(s.getScript())) {
-                s.incrementRepetitionCount();
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            suggestion.incrementRepetitionCount(); // Increment for new suggestions too
-            setter.accept(suggestions.add(suggestion));
-        }
-    }
-
-    // Getter- und Setter-Methoden
-
-    public Texture<Suggestion> getSuggestionsTriGram() {
+    public List<Suggestion> getSuggestionsTriGram() {
         return suggestionsTriGram;
     }
 
-    public void setSuggestionsTriGram(Texture<Suggestion> suggestionsTriGram) {
+    public void setSuggestionsTriGram(List<Suggestion> suggestionsTriGram) {
         this.suggestionsTriGram = suggestionsTriGram;
     }
 
-    public Texture<Suggestion> getSuggestionsBiGram() {
+    public List<Suggestion> getSuggestionsBiGram() {
         return suggestionsBiGram;
     }
 
-    public void setSuggestionsBiGram(Texture<Suggestion> suggestionsBiGram) {
+    public void setSuggestionsBiGram(List<Suggestion> suggestionsBiGram) {
         this.suggestionsBiGram = suggestionsBiGram;
     }
 
-    public Texture<Suggestion> getSuggestionsDirect() {
+    public List<Suggestion> getSuggestionsDirect() {
         return suggestionsDirect;
     }
 
-    public void setSuggestionsDirect(Texture<Suggestion> suggestionsDirect) {
+    public void setSuggestionsDirect(List<Suggestion> suggestionsDirect) {
         this.suggestionsDirect = suggestionsDirect;
     }
 

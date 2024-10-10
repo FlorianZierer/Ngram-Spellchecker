@@ -9,7 +9,7 @@ public class Suggestion {
     // Das zugehörige Skript
     private Script script;
     // Zähler für Wiederholungen
-    private int repetitionCount = 0;
+    private int repetitionCount = 1;
 
     // Konstruktor für einen neuen Vorschlag
     public Suggestion(double distance, Script script) {
@@ -18,17 +18,12 @@ public class Suggestion {
     }
 
     // Methode zum Zusammenführen von zwei Suggestions
-    public void merge(Suggestion s) {
-        if (s.script.equals(script)) {
-            int oldCount = this.repetitionCount;
-
-            if (this.repetitionCount == s.repetitionCount) {
-                this.repetitionCount += 1;
-            } else {
-                this.repetitionCount += s.repetitionCount;
-            }
-            this.distance = Math.max(s.distance, distance);
+    public Suggestion merge(Suggestion other) {
+        if (!this.script.equals(other.script)) {
+            throw new IllegalArgumentException("Cannot merge Suggestions with different scripts");
         }
+        this.repetitionCount += other.repetitionCount;
+        return this;
     }
 
     // Erhöht den Wiederholungszähler
@@ -60,5 +55,18 @@ public class Suggestion {
 
     public void setRepetitionCount(int repetitionCount) {
         this.repetitionCount = repetitionCount;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Suggestion that = (Suggestion) o;
+        return script.equals(that.script);
+    }
+
+    @Override
+    public int hashCode() {
+        return script.hashCode();
     }
 }

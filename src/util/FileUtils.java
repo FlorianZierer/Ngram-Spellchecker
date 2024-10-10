@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class FileUtils {
@@ -40,19 +42,17 @@ public class FileUtils {
             }
         }
     }
+    public static int getEpochs(Path jsonFilePath) throws IOException {
+        Pattern jsonPartPattern = Pattern.compile("###JSON_PART###");
+        String content = Files.readString(jsonFilePath);
+        Matcher jsonPartMatcher = jsonPartPattern.matcher(content);
 
-    public static int countSentences(String filePath) throws IOException {
-        int sentenceCount = 0;
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sentenceCount++;
-                if (sentenceCount <= 5) {
-                    System.out.println("Line " + sentenceCount + ": Content: " + line.substring(0, Math.min(50, line.length())) + "...");
-                }
-            }
-            System.out.println("Total lines/sentences in file: " + sentenceCount);
+        int count = 0;
+        while (jsonPartMatcher.find()) {
+            count++;
         }
-        return sentenceCount;
+
+        // Return count + 1 (number of parts is one more than number of separators)
+        return count+1;
     }
 }

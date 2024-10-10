@@ -5,6 +5,8 @@ import lingologs.Texture;
 import model.Prediction;
 import model.Suggestion;
 
+import java.util.List;
+
 // Klasse für Rechtschreibprüfungs-Operationen
 public class SpellCheckerUtils {
     // Methode zum Ausgeben von Wortinformationen
@@ -14,7 +16,7 @@ public class SpellCheckerUtils {
     }
 
     // Methode zum Ausgeben von Vorschlägen
-    public static void printSuggestions(String category, Texture<Suggestion> suggestions, boolean directModeEnabled) {
+    public static void printSuggestions(String category, List<Suggestion> suggestions, boolean directModeEnabled) {
         if (directModeEnabled && !category.equals("Direct")) {
             return;
         }

@@ -1,115 +1,81 @@
 package generator;
 
+import lingolava.Legacy;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
 import model.Suggestion;
-import util.FileUtils;
-import util.PredictionUtils;
-import util.SpellCheckerUtils;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-public class LoadNgramCallable implements Callable<Texture<Prediction>> {
-    private final Path jsonFilePath;
+import static util.PredictionUtils.distance;
+
+public class LoadNgramCallable implements Callable<Texture<Prediction>> { ;
     private final List<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;
-    private final int ngramSize;
-    private final List<Prediction> mutablePredictions;
-    private final int threadID;
-    private final int startIndex;
-    private final int endIndex;
+    private List<Prediction> mutablePredictions;
+    private final int epoch;
+    private final String[] jsonArray;
 
-    public LoadNgramCallable(Path jsonFilePath, Texture<Prediction> predictions, Texture<Script> paddedWords, int threadID, int ngrams, double acceptanceThreshold, int startIndex, int endIndex) {
-        this.jsonFilePath = jsonFilePath;
+    public LoadNgramCallable(String[] jsonArray, Texture<Prediction> predictions, Texture<Script> paddedWords, int ngrams, double acceptanceThreshold, int epoch) {
+        this.jsonArray = jsonArray;
         this.ngramsToSearch = paddedWords.grammy(ngrams);
         this.acceptanceThreshold = acceptanceThreshold;
-        this.ngramSize = ngrams;
-        this.mutablePredictions = new ArrayList<>(predictions.toList());
-        this.threadID = threadID;
-        this.startIndex = startIndex;
-        this.endIndex = endIndex;
+        this.mutablePredictions = predictions.toList();
+        this.epoch = epoch;
     }
 
     @Override
     public Texture<Prediction> call() throws Exception {
-        loadExistingNgrams();
+        processNgramBatch(jsonArray[epoch]);
         return new Texture<>(mutablePredictions);
     }
 
-    private void loadExistingNgrams() throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(jsonFilePath)) {
-            String line;
-            int currentIndex = 0;
-            StringBuilder batchBuilder = new StringBuilder("[");
 
-            while ((line = reader.readLine()) != null && currentIndex < endIndex) {
-                if (currentIndex >= startIndex) {
-                    if (batchBuilder.length() > 1) {
-                        batchBuilder.append(",");
-                    }
-                    batchBuilder.append(line);
-
-                    if (batchBuilder.length() > 1000000) { // Process in chunks of approximately 1MB
-                        batchBuilder.append("]");
-                        processNgramBatch(batchBuilder.toString());
-                        batchBuilder = new StringBuilder("[");
-                    }
-                }
-                currentIndex++;
-            }
-
-            if (batchBuilder.length() > 1) {
-                batchBuilder.append("]");
-                processNgramBatch(batchBuilder.toString());
-            }
-        }
-    }
 
     private void processNgramBatch(String jsonBatch) {
         try {
             Nexus.DataNote ngramNote = Nexus.DataNote.byJSON(jsonBatch);
-            Texture<Script> ngram = new Texture<>(ngramNote.asList(inner -> new Script(inner.asString())));
-            filterForSuggestions(ngram);
+            Texture<Texture<Script>> loadedNgrams = new Texture<>(ngramNote.asList(d -> new Texture<>(d.asList(inner -> new Script(inner.asString())))));
+            loadedNgrams.forEach(this::filterForSuggestions);
         } catch (Exception e) {
-            System.err.println("Thread " + threadID + ": Error processing JSON batch: " + e.getMessage());
+            System.err.println("Error processing ngram batch: " + e.getMessage());
         }
+
     }
 
     private void filterForSuggestions(Texture<Script> inputNgram) {
-        for (int i = 0; i < ngramsToSearch.size(); i++) {
-            getSuggestion(ngramsToSearch.get(i), inputNgram, i);
-        }
-    }
-
-    // Ermittelt Vorschläge basierend auf den N-Grammen
-    private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
-        if (input.extent() != ngramSize || data.extent() != ngramSize) {
+        if (inputNgram == null || inputNgram.extent() == 0) {
             return;
         }
 
-        double[] distances = new double[3];
-        boolean[] distanceValid = new boolean[3];
-
-        for (int i = 0; i < 3; i++) {
-            distances[i] = PredictionUtils.distance(input.at(i), data.at(i));
-            distanceValid[i] = distances[i] >= acceptanceThreshold;
+        int size = ngramsToSearch.size();
+        for (int i = 0; i < size; i++) {
+            try {
+                getSuggestion(ngramsToSearch.get(i), inputNgram, i);
+            } catch (Exception e) {
+                System.err.println("Error processing suggestion for index " + i + ": " + e.getMessage());
+            }
         }
+    }
 
-        Prediction prediction = mutablePredictions.get(predictionIndex);
-        if (distanceValid[0] && distanceValid[1] && distanceValid[2]) {
-            prediction.addSuggestionTriGram(new Suggestion(distances[1], data.at(1)));
-        } else if ((distanceValid[0] || distanceValid[2]) && distanceValid[1]) {
-            prediction.addSuggestionBiGram(new Suggestion(distances[1], data.at(1)));
-        } else if (distanceValid[1] && !distanceValid[0] && !distanceValid[2]) {
-            prediction.addSuggestionDirect(new Suggestion(distances[1], data.at(1)));
+    private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
+        double distance1 = distance(input.at(0), data.at(0));
+        double distance2 = distance(input.at(1), data.at(1));
+        double distance3 = distance(input.at(2), data.at(2));
+
+        boolean distance1Valid = distance1 >= acceptanceThreshold;
+        boolean distance2Valid = distance2 >= acceptanceThreshold;
+        boolean distance3Valid = distance3 >= acceptanceThreshold;
+
+        if (distance1Valid && distance2Valid && distance3Valid) {
+            mutablePredictions.get(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
+        } else if ((distance1Valid || distance3Valid) && distance2Valid) {
+            mutablePredictions.get(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
+        } else if (distance2Valid) {
+            mutablePredictions.get(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
         }
     }
 }
