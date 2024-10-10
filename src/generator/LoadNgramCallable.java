@@ -1,6 +1,5 @@
 package generator;
 
-import lingolava.Legacy;
 import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
