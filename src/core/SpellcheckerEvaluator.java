@@ -5,6 +5,7 @@ import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
+import util.PredictionUtils;
 import util.SpellCheckerPrintUtils;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.util.concurrent.ExecutionException;
 
 public class SpellcheckerEvaluator {
     private static final String EVALUATION_DATASET_PATH = ".\\Transcripts\\Evaluation\\evaluation_dataset.json";
+    private static final int BATCH_SIZE = 10;
     private SpellChecker spellChecker;
 
     public SpellcheckerEvaluator(SpellChecker spellChecker) {
@@ -30,10 +32,23 @@ public class SpellcheckerEvaluator {
         System.out.println(Constants.ANSI_CYAN + "Modus: " + (directMode ? "Nur direkte Vorschläge" : "Alle Vorschläge") + Constants.ANSI_RESET);
         System.out.println();
 
-        // Create a single Texture for all padded sentences
+        for (int batchStart = 0; batchStart < totalSentences; batchStart += BATCH_SIZE) {
+            int batchEnd = Math.min(batchStart + BATCH_SIZE, totalSentences);
+            List<Map<String, String>> batchDataset = dataset.subList(batchStart, batchEnd);
+
+            correctlyCorrected += processBatch(batchDataset, directMode, batchStart);
+        }
+
+        double accuracy = (double) correctlyCorrected / totalSentences;
+        System.out.printf(Constants.ANSI_GREEN + "Genauigkeit: %.2f%%%n" + Constants.ANSI_RESET, accuracy * 100);
+        return accuracy;
+    }
+
+    private int processBatch(List<Map<String, String>> batchDataset, boolean directMode, int batchStart) throws ExecutionException, InterruptedException, IOException {
+        int correctlyCorrected = 0;
         List<Script> allPaddedWords = new ArrayList<>();
 
-        for (Map<String, String> entry : dataset) {
+        for (Map<String, String> entry : batchDataset) {
             String incorrect = entry.get("incorrect");
             List<Script> paddedSentence = padSentence(incorrect);
             allPaddedWords.addAll(paddedSentence);
@@ -43,14 +58,14 @@ public class SpellcheckerEvaluator {
         Texture<Prediction> allPredictions = spellChecker.getPredictions(allWords, directMode);
 
         int wordIndex = 0;
-        for (Map<String, String> entry : dataset) {
+        for (Map<String, String> entry : batchDataset) {
             String correct = entry.get("correct");
             String incorrect = entry.get("incorrect");
 
             System.out.println();
             System.out.println(Constants.ANSI_YELLOW + "----------------------------------------------------------------------" + Constants.ANSI_RESET);
             System.out.println();
-            System.out.println(Constants.ANSI_BLUE + "Satz: " + incorrect + Constants.ANSI_RESET);
+            System.out.println(Constants.ANSI_BLUE + "Satz " + (batchStart + wordIndex / 3 + 1) + ": " + incorrect + Constants.ANSI_RESET);
 
             List<Script> paddedSentence = padSentence(incorrect);
             List<Prediction> sentencePredictions = new ArrayList<>();
@@ -105,9 +120,13 @@ public class SpellcheckerEvaluator {
             wordIndex += paddedSentence.size();
         }
 
-        double accuracy = (double) correctlyCorrected / totalSentences;
-        System.out.printf(Constants.ANSI_GREEN + "Genauigkeit: %.2f%%%n" + Constants.ANSI_RESET, accuracy * 100);
-        return accuracy;
+
+        PredictionUtils.clearCache();
+        for (Prediction prediction : allPredictions.toList()) {
+            prediction.clear();
+        }
+
+        return correctlyCorrected;
     }
 
     private List<Script> padSentence(String sentence) {

@@ -47,6 +47,10 @@ public class SuggestionSet {
         suggestions.addAll(tempList);
     }
 
+    public synchronized void clear() {
+        suggestions.clear();
+    }
+
     public synchronized boolean isEmpty() {
         return suggestions.isEmpty();
     }

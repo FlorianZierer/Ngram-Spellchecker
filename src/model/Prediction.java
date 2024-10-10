@@ -59,6 +59,12 @@ public class Prediction {
         return word;
     }
 
+    public void clear() {
+        suggestionsTriGram.clear();
+        suggestionsBiGram.clear();
+        suggestionsDirect.clear();
+    }
+
     public void addSuggestionTriGram(Suggestion suggestion) {
         this.suggestionsTriGram.add(suggestion);
         this.cachedPrediction = null; // Invalidate cache
