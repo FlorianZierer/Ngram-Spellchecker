@@ -67,7 +67,7 @@ public class Main {
 
 		// Parameter für den SpellChecker festlegen
 		double percent = 1;
-		int mircothreads = 10000;  // nur relevant beim Erstellen. Beim Auslesen wird immer die gleiche Anzahl an Threads erstellt, wie vielei try Files erstellt wurden
+		int mircothreads = 100;  // nur relevant beim Erstellen. Beim Auslesen wird immer die gleiche Anzahl an Threads erstellt, wie vielei try Files erstellt wurden
 		int epochs = 10;
 		Double acceptanceThreshold = 0.65;
 
