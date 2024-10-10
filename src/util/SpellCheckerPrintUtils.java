@@ -4,11 +4,10 @@ import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
 import model.Suggestion;
-
-import java.util.List;
+import model.SuggestionSet;
 
 // Klasse für Rechtschreibprüfungs-Operationen
-public class SpellCheckerUtils {
+public class SpellCheckerPrintUtils {
     // Methode zum Ausgeben von Wortinformationen
     public static void printWordInfo(Script originalWord, Prediction prediction) {
         System.out.println("\nWort: " + originalWord);
@@ -16,13 +15,13 @@ public class SpellCheckerUtils {
     }
 
     // Methode zum Ausgeben von Vorschlägen
-    public static void printSuggestions(String category, List<Suggestion> suggestions, boolean directModeEnabled) {
+    public static void printSuggestions(String category, SuggestionSet suggestions, boolean directModeEnabled) {
         if (directModeEnabled && !category.equals("Direct")) {
             return;
         }
         System.out.println("Vorschläge (" + category + "):");
         int count = 0;
-        for (Suggestion suggestion : suggestions) {
+        for (Suggestion suggestion : suggestions.toList()) {
             if (count >= 5) break;
             System.out.println("  - " + suggestion.getScript() + " (Distanz: " + suggestion.getDistance() + ", Frequenz: " + suggestion.getRepetitionCount() + ")");
             count++;

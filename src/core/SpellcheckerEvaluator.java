@@ -5,7 +5,7 @@ import lingolava.Nexus;
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
-import util.SpellCheckerUtils;
+import util.SpellCheckerPrintUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -72,7 +72,7 @@ public class SpellcheckerEvaluator {
                 Script originalWord = paddedSentence.get(i);
                 Prediction prediction = sentencePredictions.get(i);
 
-                SpellCheckerUtils.printWordInfo(originalWord, prediction);
+                SpellCheckerPrintUtils.printWordInfo(originalWord, prediction);
 
                 if (!originalWord.equals(prediction.getPrediction())) {
                     System.out.printf(Constants.ANSI_PURPLE + " %s → %s%n" + Constants.ANSI_RESET, originalWord, prediction.getPrediction());
@@ -81,10 +81,10 @@ public class SpellcheckerEvaluator {
                 }
 
                 if (!directMode) {
-                    SpellCheckerUtils.printSuggestions("TriGram", prediction.getSuggestionsTriGram(), directMode);
-                    SpellCheckerUtils.printSuggestions("BiGram", prediction.getSuggestionsBiGram(), directMode);
+                    SpellCheckerPrintUtils.printSuggestions("TriGram", prediction.getSuggestionsTriGram(), directMode);
+                    SpellCheckerPrintUtils.printSuggestions("BiGram", prediction.getSuggestionsBiGram(), directMode);
                 }
-                SpellCheckerUtils.printSuggestions("Direct", prediction.getSuggestionsDirect(), directMode);
+                SpellCheckerPrintUtils.printSuggestions("Direct", prediction.getSuggestionsDirect(), directMode);
             }
 
             System.out.println(Constants.ANSI_YELLOW + "----------------------------------------------------------------------" + Constants.ANSI_RESET);
@@ -95,7 +95,7 @@ public class SpellcheckerEvaluator {
             System.out.println(Constants.ANSI_YELLOW + "----------------------------------------------------------------------" + Constants.ANSI_RESET);
             System.out.println();
 
-            SpellCheckerUtils.printInputAndCorrectedWords(new Texture<>(paddedSentence.subList(1, paddedSentence.size() - 1)),
+            SpellCheckerPrintUtils.printInputAndCorrectedWords(new Texture<>(paddedSentence.subList(1, paddedSentence.size() - 1)),
                     new Texture<>(correctedWords.subList(1, correctedWords.size() - 1)));
 
             if (isCorrect) {

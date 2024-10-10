@@ -56,10 +56,6 @@ public class SpellChecker {
                 existingPrediction.getSuggestionsDirect().addAll(newPrediction.getSuggestionsDirect());
             }
         }
-
-        // Deduplicate and sort predictions for each word
-        allPredictions.forEach(Prediction::reduceAllLists);
-
         return new Texture<>(allPredictions);
     }
 }

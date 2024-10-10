@@ -9,10 +9,14 @@ import model.Suggestion;
 
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import static util.PredictionUtils.distance;
 
-public class LoadNgramCallable implements Callable<Texture<Prediction>> { ;
+public class LoadNgramCallable implements Callable<Texture<Prediction>> {
+    private static final Logger LOGGER = Logger.getLogger(LoadNgramCallable.class.getName());
+
     private final List<Texture<Script>> ngramsToSearch;
     private final double acceptanceThreshold;
     private List<Prediction> mutablePredictions;
@@ -29,11 +33,13 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> { ;
 
     @Override
     public Texture<Prediction> call() throws Exception {
-        processNgramBatch(jsonArray[epoch]);
+        try {
+            processNgramBatch(jsonArray[epoch]);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in call method", e);
+        }
         return new Texture<>(mutablePredictions);
     }
-
-
 
     private void processNgramBatch(String jsonBatch) {
         try {
@@ -41,13 +47,13 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> { ;
             Texture<Texture<Script>> loadedNgrams = new Texture<>(ngramNote.asList(d -> new Texture<>(d.asList(inner -> new Script(inner.asString())))));
             loadedNgrams.forEach(this::filterForSuggestions);
         } catch (Exception e) {
-            System.err.println("Error processing ngram batch: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error processing ngram batch", e);
         }
-
     }
 
     private void filterForSuggestions(Texture<Script> inputNgram) {
         if (inputNgram == null || inputNgram.extent() == 0) {
+            LOGGER.warning("Null or empty inputNgram encountered");
             return;
         }
 
@@ -56,26 +62,41 @@ public class LoadNgramCallable implements Callable<Texture<Prediction>> { ;
             try {
                 getSuggestion(ngramsToSearch.get(i), inputNgram, i);
             } catch (Exception e) {
-                System.err.println("Error processing suggestion for index " + i + ": " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "Error processing suggestion for index " + i, e);
             }
         }
     }
 
     private void getSuggestion(Texture<Script> input, Texture<Script> data, int predictionIndex) {
-        double distance1 = distance(input.at(0), data.at(0));
-        double distance2 = distance(input.at(1), data.at(1));
-        double distance3 = distance(input.at(2), data.at(2));
+        try {
+            if (input == null || data == null || input.extent() < 3 || data.extent() < 3) {
+                LOGGER.warning("Invalid input or data in getSuggestion: input=" + input + ", data=" + data);
+                return;
+            }
 
-        boolean distance1Valid = distance1 >= acceptanceThreshold;
-        boolean distance2Valid = distance2 >= acceptanceThreshold;
-        boolean distance3Valid = distance3 >= acceptanceThreshold;
+            double distance1 = distance(input.at(0), data.at(0));
+            double distance2 = distance(input.at(1), data.at(1));
+            double distance3 = distance(input.at(2), data.at(2));
 
-        if (distance1Valid && distance2Valid && distance3Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
-        } else if ((distance1Valid || distance3Valid) && distance2Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
-        } else if (distance2Valid) {
-            mutablePredictions.get(predictionIndex).addSuggestionDirect(new Suggestion(distance2, data.at(1)));
+            boolean distance1Valid = distance1 >= acceptanceThreshold;
+            boolean distance2Valid = distance2 >= acceptanceThreshold;
+            boolean distance3Valid = distance3 >= acceptanceThreshold;
+
+            Prediction prediction = mutablePredictions.get(predictionIndex);
+            if (prediction == null) {
+                LOGGER.warning("Null prediction at index " + predictionIndex);
+                return;
+            }
+
+            if (distance1Valid && distance2Valid && distance3Valid) {
+                prediction.addSuggestionTriGram(new Suggestion(distance2, data.at(1)));
+            } else if ((distance1Valid || distance3Valid) && distance2Valid) {
+                prediction.addSuggestionBiGram(new Suggestion(distance2, data.at(1)));
+            } else if (distance2Valid) {
+                prediction.addSuggestionDirect(new Suggestion(distance2, data.at(1)));
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in getSuggestion method", e);
         }
     }
 }

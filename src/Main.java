@@ -4,13 +4,10 @@ import core.SpellcheckerEvaluator;
 import lingologs.Script;
 import lingologs.Texture;
 import model.Prediction;
-import util.SpellCheckerUtils;
+import util.SpellCheckerPrintUtils;
 
-import java.io.Console;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
@@ -49,16 +46,16 @@ public class Main {
                 Script originalWord = words.at(i);
                 Prediction prediction = predictions.at(i);
 
-                SpellCheckerUtils.printWordInfo(originalWord, prediction);
+                SpellCheckerPrintUtils.printWordInfo(originalWord, prediction);
 
                 // Vorschläge basierend auf verschiedenen Methoden ausgeben
-                SpellCheckerUtils.printSuggestions("TriGram", prediction.getSuggestionsTriGram(), directmode);
-                SpellCheckerUtils.printSuggestions("BiGram", prediction.getSuggestionsBiGram(), directmode);
-                SpellCheckerUtils.printSuggestions("Direct", prediction.getSuggestionsDirect(), directmode);
+                SpellCheckerPrintUtils.printSuggestions("TriGram", prediction.getSuggestionsTriGram(), directmode);
+                SpellCheckerPrintUtils.printSuggestions("BiGram", prediction.getSuggestionsBiGram(), directmode);
+                SpellCheckerPrintUtils.printSuggestions("Direct", prediction.getSuggestionsDirect(), directmode);
             }
 
             // Ursprüngliche und korrigierte Wörter ausgeben
-            SpellCheckerUtils.printInputAndCorrectedWords(words, correctedWords);
+            SpellCheckerPrintUtils.printInputAndCorrectedWords(words, correctedWords);
         }
         scanner.close();
     }
@@ -70,7 +67,7 @@ public class Main {
 
 		// Parameter für den SpellChecker festlegen
 		double percent = 1;
-		int mircothreads = 20;  // nur relevant beim Erstellen. Beim Auslesen wird immer die gleiche Anzahl an Threads erstellt, wie vielei try Files erstellt wurden
+		int mircothreads = 10000;  // nur relevant beim Erstellen. Beim Auslesen wird immer die gleiche Anzahl an Threads erstellt, wie vielei try Files erstellt wurden
 		int epochs = 10;
 		Double acceptanceThreshold = 0.65;
 
