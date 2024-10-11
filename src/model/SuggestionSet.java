@@ -38,6 +38,9 @@ public class SuggestionSet {
 
     // Sortiert die Vorschläge nach benutzerdefinierten Kriterien
     // Dies wäre mit einer normalen Liste schwieriger zu implementieren
+
+// Quellen: https://docs.oracle.com/cd/E19455-01/806-5257/6je9h0346/index.html#:~:text=The%20threads%20in%20an%20application,something%20that%20manipulates%20an%20object.
+    //https://www.baeldung.com/java-synchronized
     private synchronized void sortSuggestions() {
         List<Suggestion> tempList = new ArrayList<>(suggestions);
         Collections.sort(tempList, (s1, s2) -> {

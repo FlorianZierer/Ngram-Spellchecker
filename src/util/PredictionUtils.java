@@ -13,6 +13,9 @@ public class PredictionUtils {
     // Wird verwendet, um wiederholte Berechnungen zu vermeiden und die Leistung zu verbessern
     private static final Map<Pair<Script, Script>, Double> distanceCache = new ConcurrentHashMap<>();
 
+//Caching Quellen: von: https://stackoverflow.com/questions/26915079/cache-using-concurrenthashmap
+    //und https://medium.com/@alxkm/concurrenthashmap-for-caching-05c48d1d6bf0
+
     // Berechnet die Distanz zwischen zwei Skripten
     // Nutzt den Cache, um bereits berechnete Distanzen wiederzuverwenden
     public static double distance(Script word1, Script word2) {
